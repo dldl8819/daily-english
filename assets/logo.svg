@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <defs>
+    <!-- 오른쪽 위를 한 입 베어 문 자국: 겹친 원 세 개로 잇자국 모양을 낸다 -->
+    <mask id="bite">
+      <rect width="600" height="600" fill="#fff"/>
+      <circle cx="452" cy="176" r="62" fill="#000"/>
+      <circle cx="504" cy="236" r="50" fill="#000"/>
+      <circle cx="398" cy="128" r="46" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="600" height="600" fill="#EA580C"/>
+  <g mask="url(#bite)">
+    <rect x="96" y="140" width="408" height="292" rx="72" fill="#FFF7ED"/>
+    <path d="M176 420 L150 500 L262 428 Z" fill="#FFF7ED"/>
+  </g>
+  <!-- 빈칸 문장: 단어 막대 + 빈칸 밑줄 -->
+  <rect x="160" y="236" width="128" height="34" rx="17" fill="#C2410C"/>
+  <rect x="160" y="310" width="96" height="34" rx="17" fill="#FDBA74"/>
+  <rect x="276" y="330" width="132" height="14" rx="7" fill="#C2410C"/>
+</svg>

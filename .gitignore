@@ -1,0 +1,20 @@
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+*.ait
+
+# 공개하지 않는 파일: 실제 문제 은행(샘플은 questions.sample.json), 운영 사정이 담긴 기획 문서
+src/data/questions.json
+docs/18_기능_확장_기획.md
+
+# 비밀값: 서버 비밀 키·mTLS 인증서·Workers 로컬 비밀값. 공개 저장소라 한 번 올라가면 키를 새로 발급해야 한다.
+# .env.production은 번들에 들어가는 공개 값(광고 그룹 ID)만 담으므로 저장소에 둔다.
+.env
+.env*.local
+*.pem
+*.key
+.dev.vars
+.wrangler/
+supabase/.temp/

@@ -1,0 +1,24 @@
+# 의존성·액션 업데이트 PR. 새 릴리스는 7일 지켜본 뒤에 올린다(공급망 사고 대비).
+# minor·patch는 한 PR로 묶고, major는 따로 연다. 올라온 PR은 CI가 통과한 뒤 직접 확인하고 합친다.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /server
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

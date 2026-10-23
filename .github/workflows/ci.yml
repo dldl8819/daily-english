@@ -1,0 +1,89 @@
+# 저장소에는 샘플 문제(75개)만 있어 CI는 샘플로 검사한다.
+# 배포는 하지 않는다. 실제 문제 은행·mTLS 인증서·비밀값은 PC에만 있다(server/README.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  WRANGLER_SEND_METRICS: 'false'
+
+jobs:
+  check:
+    name: 타입·테스트·빌드
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: server
+
+      - name: 타입 검사
+        run: |
+          npx tsc --noEmit
+          npm run typecheck --prefix server
+
+      - name: 테스트
+        run: npm test
+
+      - name: 기기 모드 빌드, 문제 은행 검사기 자체 점검
+        run: |
+          npm run build
+          npm run check:bundle -- --self-test
+
+      - name: 서버 모드 빌드, 번들에 문제 은행이 없는지 확인
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.example.invalid
+        run: |
+          npm run build
+          npm run check:bundle
+
+      - name: Worker 번들 (배포하지 않음)
+        working-directory: server
+        run: |
+          npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker"
+          npx wrangler deploy --dry-run --env production --outdir "$RUNNER_TEMP/worker-production"
+
+  integration:
+    name: 통합 (Workers 런타임 + Supabase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: server
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.121.0
+      - name: 마이그레이션·권한·동시 요청 검증
+        run: bash server/scripts/integration.sh

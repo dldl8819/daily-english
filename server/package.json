@@ -1,0 +1,23 @@
+{
+  "name": "english-bite-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "predeploy": "node scripts/check-bank.mjs",
+    "deploy": "wrangler deploy --env production"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261022.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.152.0"
+  }
+}
