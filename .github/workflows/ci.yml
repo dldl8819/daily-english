@@ -37,6 +37,9 @@ jobs:
       - run: npm ci
       - run: npm ci
         working-directory: server
+      # src/data/questions.json(실제 문제 은행)은 저장소에 없다. 타입 검사·서버 번들이 import하므로 샘플을 먼저 복사한다.
+      - name: 샘플 문제 은행 준비
+        run: npm run questions
 
       - name: 타입 검사
         run: |
