@@ -37,6 +37,7 @@ import SettingsView, { type SettingsSection } from './SettingsView';
 import StudyWizard from './StudyWizard';
 import { requestReview, shouldAskReview, track, trackScreen } from '@/lib/analytics';
 import TodayReview, { type ReviewGroup } from './TodayReview';
+import Translation from './Translation';
 import { useTheme } from './useTheme';
 import { useView } from './useView';
 import WrongView from './WrongView';
@@ -202,6 +203,7 @@ function Quiz({ questions, picks, onPick, onFinish, isSaved, onToggleSave, label
               )}
             </p>
             <p>{question.explanation}</p>
+            <Translation text={question.translation} />
           </div>
           <div className="save-row" role="group" aria-label="다시 볼 항목에 저장">
             {(['sentence', 'word'] as const).map((kind) => {

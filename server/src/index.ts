@@ -1,4 +1,6 @@
 import questions from '../../src/data/questions.json';
+// 1년 분량으로 늘린 추가 문제 은행. 기기 모드 번들에는 넣지 않고 서버에서만 쓴다.
+import extra from '../../src/data/questions.extra.json';
 import type { Question } from '../../src/lib/types';
 import { createApp } from './app';
 import { type MtlsFetcher, exchangeAnonCode } from './auth';
@@ -20,7 +22,7 @@ export interface Env {
   TOSS_MTLS?: MtlsFetcher;
 }
 
-const bank = createBank(questions as Question[]);
+const bank = createBank([...(questions as Question[]), ...(extra as Question[])]);
 let handle: ((req: Request) => Promise<Response>) | null = null;
 
 export default {

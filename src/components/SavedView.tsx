@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { Progress, Question, SavedKind } from '@/lib/types';
 import { filledSentence, savedEntries } from '@/lib/saved';
+import Translation from './Translation';
 
 const SECTIONS: { kind: SavedKind; title: string; empty: string }[] = [
   { kind: 'sentence', title: '문장', empty: '저장한 문장이 없어요. 문제를 풀고 "문장 저장"을 눌러 보세요.' },
@@ -49,6 +50,7 @@ export default function SavedView({ progress, questions, onRemove }: Props) {
                         </p>
                       )}
                       <p className="saved-explain">{question.explanation}</p>
+                      <Translation text={question.translation} />
                       <button
                         type="button"
                         className="small-btn"

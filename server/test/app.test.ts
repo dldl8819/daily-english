@@ -186,12 +186,36 @@ describe('오늘의 문제', () => {
 });
 
 describe('채점', () => {
+  it('문장 해석은 답하기 전에는 주지 않고, 채점 결과와 답한 문제의 다시 불러오기에만 싣는다', async () => {
+    const withTranslation = createBank((sample as Question[]).map((q) => ({ ...q, translation: `해석 #${q.id}` })));
+    const { app } = setup({ bank: withTranslation });
+    const token = await login(app, 'a');
+    const before = (await todayOf(app, token)).body;
+    expect(JSON.stringify(before)).not.toContain('해석 #');
+    const [q0, q1] = before.daily.questions;
+    const graded = await answerOf(app, token, 'daily', q0.id, 0);
+    expect(graded.body.translation).toBe(`해석 #${q0.id}`);
+    const after = (await todayOf(app, token)).body.daily;
+    expect(after.graded.map((g) => g.translation)).toEqual([`해석 #${q0.id}`]);
+    expect(JSON.stringify(after.questions)).not.toContain('해석 #');
+    expect(JSON.stringify(after)).not.toContain(`해석 #${q1.id}`);
+  });
+
+  it('해석이 없는 문항은 채점 결과에 translation을 넣지 않는다', async () => {
+    const withoutTranslation = createBank((sample as Question[]).map(({ translation: _translation, ...q }) => q));
+    const { app } = setup({ bank: withoutTranslation });
+    const token = await login(app, 'a');
+    const q = (await todayOf(app, token)).body.daily.questions[0];
+    expect(Object.keys((await answerOf(app, token, 'daily', q.id, 0)).body).sort()).toEqual(['answer', 'correct', 'explanation']);
+  });
+
   it('답을 내면 정답과 해설을 주고, 다시 불러오면 답한 문제의 채점 결과만 들어 있다', async () => {
     const { app } = setup();
     const token = await login(app, 'a');
     const [q0, q1] = (await todayOf(app, token)).body.daily.questions;
     const right = await answerOf(app, token, 'daily', q0.id, answerKey(q0.id));
-    expect(right.body).toEqual({ correct: true, answer: answerKey(q0.id), explanation: BANK.byId.get(q0.id)!.explanation });
+    const { explanation, translation } = BANK.byId.get(q0.id)!;
+    expect(right.body).toEqual({ correct: true, answer: answerKey(q0.id), explanation, ...(translation ? { translation } : {}) });
     const wrongPick = (answerKey(q1.id) + 1) % 4;
     expect((await answerOf(app, token, 'daily', q1.id, wrongPick)).body).toMatchObject({ correct: false, answer: answerKey(q1.id) });
     const daily = (await todayOf(app, token)).body.daily;

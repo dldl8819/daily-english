@@ -30,6 +30,8 @@ export type Question = {
   choices: string[];
   answer: number;
   explanation: string;
+  /** 정답을 채운 문장의 한국어 해석. 정답을 알려 주므로 답한 뒤에만 보여 준다. 아직 없는 문항도 있다. */
+  translation?: string;
 };
 
 export type TodayResult = {

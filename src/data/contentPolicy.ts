@@ -1,6 +1,6 @@
 // 문제 내용 기준 (앱인토스 비게임 출시 가이드 "비속어·은어·과도한 유행어 금지, 위법·선정적 콘텐츠 금지",
 // 서비스 오픈 정책의 제한 콘텐츠: 불법·범죄, 약물·도박, 폭력·자해, 선정성, 혐오·차별).
-// 문제 문장·보기·해설 어디에도 아래 표현을 쓰지 않는다. 오답 보기와 관용 표현도 마찬가지다.
+// 문제 문장·보기·해설·해석 어디에도 아래 표현을 쓰지 않는다. 오답 보기와 관용 표현도 마찬가지다.
 // 문제를 새로 쓸 때마다 이 검사를 통과해야 한다(src/data/questions.test.ts, 문제 추가 스크립트).
 
 /** 영어: 단어 경계로 찾는다(deadline·better·hello 같은 단어는 걸리지 않는다). */
@@ -23,17 +23,18 @@ export const BANNED_EN = [
   'devil', 'god', 'dutch',
 ];
 
-/** 한국어 해설: 그대로 포함되면 걸린다. */
+/** 한국어 해설·해석: 그대로 포함되면 걸린다. */
 export const BANNED_KO = ['죽이', '죽는', '죽었', '죽음', '살인', '음주', '술을', '담배', '도박', '마약', '섹스', '바보', '멍청', '병신', '미친'];
 
 const EN = new RegExp(`\\b(${BANNED_EN.join('|')})\\b`, 'i');
 
 /** 걸린 표현 목록. 비어 있으면 통과다. */
-export function contentViolations(question: { prompt: string; choices: string[]; explanation: string }): string[] {
+export function contentViolations(question: { prompt: string; choices: string[]; explanation: string; translation?: string }): string[] {
   const text = [question.prompt, ...question.choices].join(' | ');
   const hits: string[] = [];
   const en = text.match(EN);
   if (en) hits.push(en[0]);
-  for (const word of BANNED_KO) if (question.explanation.includes(word)) hits.push(word);
+  const korean = [question.explanation, question.translation ?? ''].join(' | ');
+  for (const word of BANNED_KO) if (korean.includes(word)) hits.push(word);
   return hits;
 }

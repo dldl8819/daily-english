@@ -10,7 +10,7 @@
 |------|----------|------|
 | `dateKey` | `(d: Date) => string` | 로컬 날짜를 `yyyy-mm-dd`로 |
 | `difficultyMix` | `(level: number) => Difficulty[]` | 레벨별 5문제 난이도 구성 |
-| `pickDaily` | `(questions, key, level = 1, seen = []) => Question[]` | 레벨·본 문제 기록을 반영해 최대 5개 |
+| `pickDaily` | `(questions, key, level = 1, seen = [], salt, categories, count, records) => Question[]` | 레벨·맞춤 설정·본 문제 기록을 반영해 최대 `count`개. 새 문제를 먼저 내고, 새 문제가 없을 때만 복습 |
 | `startAttempt` | `(progress, questions, key) => Progress` | 오늘 문제 고정. 이미 시작했으면 입력 그대로 |
 | `attemptQuestions` | `(attempt, questions) => Question[] \| null` | 고정 ID를 문제로. 빠진 문제가 있으면 null |
 | `recordPick` | `(progress, index, choice) => Progress` | 현재 문제 답 기록. 순서가 안 맞으면 입력 그대로 |
@@ -111,11 +111,11 @@ XP·연속 학습일은 가져온 기기 기록(2.7)에서 시작해 완료한 �
 }
 ```
 
-`questions`에는 정답·해설이 없다. `graded`는 `picks`와 길이가 같고, 답한 문제의 정답·해설이다(다시 열거나 기기를 바꿔도 이어 풀기 위해서다).
+`questions`에는 정답·해설·해석이 없다. `graded`는 `picks`와 길이가 같고, 답한 문제의 정답·해설·해석이다(다시 열거나 기기를 바꿔도 이어 풀기 위해서다). 해석(`translation`)은 정답을 알려 주므로 답한 뒤에만 주고, 해석이 없는 문항은 필드를 넣지 않는다.
 
 ### 2.4 `POST /api/v1/daily/{date}/answers`
 
-요청 `{ "set": "daily", "questionId": 3, "picked": 1 }` → 응답 `{ "correct": true, "answer": 1, "explanation": "..." }`
+요청 `{ "set": "daily", "questionId": 3, "picked": 1 }` → 응답 `{ "correct": true, "answer": 1, "explanation": "...", "translation": "목요일로 회의를 미루죠." }`
 
 - 세트의 다음 문제만 받는다(`OUT_OF_ORDER`).
 - 같은 답을 다시 보내면 같은 결과(응답을 못 받고 재시도). 다른 답이면 409.

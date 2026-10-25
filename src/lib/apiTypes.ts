@@ -8,10 +8,10 @@ import type { BonusSource, Question } from './types';
 /** daily: 오늘의 문제, share·ad: 보너스 5문제 */
 export type SetKind = 'daily' | BonusSource;
 
-/** 답을 내기 전의 문제. 정답과 해설이 없다. */
-export type PublicQuestion = Omit<Question, 'answer' | 'explanation'>;
+/** 답을 내기 전의 문제. 정답·해설·해석이 없다(해석도 정답을 알려 준다). */
+export type PublicQuestion = Omit<Question, 'answer' | 'explanation' | 'translation'>;
 
-export type Graded = { answer: number; explanation: string };
+export type Graded = { answer: number; explanation: string; translation?: string };
 
 export type SetResult = { correct: number; total: number; xpGained: number };
 

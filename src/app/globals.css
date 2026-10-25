@@ -106,6 +106,9 @@ p { margin: 0; }
 :root[data-theme='contrast'] .choice.ok,
 :root[data-theme='contrast'] .choice.bad { border-width: 3px; }
 .verdict { font-weight: 700; margin-bottom: 0.25rem; }
+/* 문장 해석: 해설 아래. 제목은 --sub(카드·해설 배경 위 대비는 contrast.test.ts), 본문은 --text */
+.translation { font-size: 0.9375rem; margin: 0.5rem 0; }
+.translation-label { display: block; color: var(--sub); font-size: 0.8125rem; font-weight: 700; margin-bottom: 0.125rem; }
 .btn { display: block; width: 100%; min-height: 3rem; margin-top: 1rem; padding: 1rem; border: 0; border-radius: 0.875rem; background: var(--primary-strong); color: var(--on-primary); font: inherit; font-weight: 600; cursor: pointer; }
 /* 누를 수 없는 버튼: 채움색을 빼서 활성 버튼과 구분한다. 글자는 --sub라 카드 위 대비가 유지된다. */
 .btn[aria-disabled='true'] { background: var(--card); border: var(--border-width) solid var(--line); color: var(--sub); cursor: default; }

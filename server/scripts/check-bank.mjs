@@ -12,4 +12,6 @@ if (readFileSync(bank, 'utf8') === readFileSync(sample, 'utf8')) {
   console.error('src/data/questions.json이 샘플과 같아요. 실제 문제 은행을 두고 배포해 주세요.');
   process.exit(1);
 }
-console.log(`문제 은행 ${JSON.parse(readFileSync(bank, 'utf8')).length}문제를 서버에 넣어 배포해요.`);
+const extraPath = new URL('../../src/data/questions.extra.json', import.meta.url);
+const extra = existsSync(extraPath) ? JSON.parse(readFileSync(extraPath, 'utf8')).length : 0;
+console.log(`문제 은행 ${JSON.parse(readFileSync(bank, 'utf8')).length}문제 + 추가 문제 ${extra}문제를 서버에 넣어 배포해요.`);

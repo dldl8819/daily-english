@@ -5,6 +5,7 @@ import type { Question } from '@/lib/types';
 import { CATEGORY_LABEL } from '@/lib/study';
 import type { WrongEntry } from '@/lib/wrong';
 import Prompt from './Prompt';
+import Translation from './Translation';
 
 type Props = {
   entries: WrongEntry[];
@@ -83,6 +84,7 @@ function WrongItemCard({ entry, onRetry, onCorrect, onConfirm }: ItemProps) {
             )}
           </p>
           <p>{question.explanation}</p>
+          <Translation text={question.translation} />
           {right && (
             <button type="button" className="btn" onClick={() => onConfirm(question.id)}>
               확인

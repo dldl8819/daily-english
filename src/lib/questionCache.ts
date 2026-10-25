@@ -3,7 +3,7 @@ import type { Question } from './types';
 
 /**
  * 서버 모드에서 받은 문제. 풀이·다시 볼 항목·틀린 문제·복습 화면이 문제 은행 대신 이것을 쓴다.
- * 채점 전에는 정답과 해설을 모르므로 answer가 UNGRADED, explanation이 ''다. 그런 문제는 답하기 전의 풀이 화면에만 나온다.
+ * 채점 전에는 정답·해설·해석을 모르므로 answer가 UNGRADED, explanation이 ''이고 translation이 없다. 그런 문제는 답하기 전의 풀이 화면에만 나온다.
  */
 export const QUESTION_CACHE_KEY = 'daily-english:questions:v1';
 export const UNGRADED = -1;
@@ -21,7 +21,8 @@ function isQuestion(value: unknown): value is Question {
     Array.isArray(q.choices) &&
     q.choices.every((c) => typeof c === 'string') &&
     typeof q.answer === 'number' &&
-    typeof q.explanation === 'string'
+    typeof q.explanation === 'string' &&
+    (q.translation === undefined || typeof q.translation === 'string')
   );
 }
 

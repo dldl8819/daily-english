@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import bankData from '../../src/data/questions.json';
+import extraData from '../../src/data/questions.extra.json';
 import type { AnswerResponse, CompleteResponse, SetView, TodayResponse } from '../../src/lib/apiTypes';
 import type { Question } from '../../src/lib/types';
 
@@ -11,7 +12,7 @@ import type { Question } from '../../src/lib/types';
 const API = process.env.API_URL;
 const SUPABASE = process.env.SUPABASE_URL;
 const PUBLISHABLE = process.env.SUPABASE_PUBLISHABLE_KEY;
-const BANK = new Map((bankData as Question[]).map((q) => [q.id, q]));
+const BANK = new Map([...(bankData as Question[]), ...(extraData as Question[])].map((q) => [q.id, q]));
 const PROFILE = 'reason=career&careerFocus=dev&selfLevel=1&dailyGoal=5';
 
 function kstToday(): string {

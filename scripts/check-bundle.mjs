@@ -1,4 +1,4 @@
-// 빌드한 out/에 문제 은행(문제 문장·해설)이 들어 있는지 검사한다.
+// 빌드한 out/에 문제 은행(정답·해설·해석)이 들어 있는지 검사한다.
 // - 서버 모드(NEXT_PUBLIC_API_BASE_URL이 있는 빌드): 한 문제라도 들어 있으면 실패한다. 문제 은행은 서버에만 둔다.
 // - 기기 모드: 문제 은행이 들어 있는 게 정상이라 개수만 알린다.
 //   --self-test를 주면 전 문항을 찾아내는지 확인한다. 서버 모드의 "0문항"이 검사 실수가 아니라는 근거다(CI).
@@ -47,8 +47,24 @@ if (!existsSync(out)) {
 }
 const bank = JSON.parse(readFileSync(join(root, 'src/data/questions.json'), 'utf8'));
 const bundle = unescape(textFiles(out).map((f) => readFileSync(f, 'utf8')).join('\n'));
+// 해석은 판별에 쓰지 않는다. 짧은 한국어 문장은 화면 문구와 우연히 겹친다(예: '앱을 최신 버전으로 업데이트해 주세요.').
+// 문제 은행은 문항 단위로 통째로 들어가므로 영어 문장·해설만으로 찾아낼 수 있다(--self-test가 확인).
 const found = bank.filter((q) => bundle.includes(q.prompt) || bundle.includes(q.explanation));
 const serverMode = apiBaseUrl() !== '';
+
+// 추가 문제 은행(questions.extra.json)은 서버 전용이다. 어느 모드든 클라이언트 번들에 한 문항이라도 있으면 실패한다.
+// 기기 모드 번들에는 기본 문제 은행이 들어 있으므로, 기본 문항에도 있는 해설(예: "'~할 때'는 when이에요.")은 근거로 쓰지 않는다.
+// 문장은 문항마다 다르다(src/data/questions.test.ts의 중복 검사가 막는다).
+const extraPath = join(root, 'src/data/questions.extra.json');
+const extra = existsSync(extraPath) ? JSON.parse(readFileSync(extraPath, 'utf8')) : [];
+const mainText = bank.map((q) => `${q.prompt}\n${q.explanation}`).join('\n');
+const extraFound = extra.filter(
+  (q) => bundle.includes(q.prompt) || (bundle.includes(q.explanation) && !mainText.includes(q.explanation)),
+);
+if (extraFound.length > 0) {
+  console.error(`추가 문제 은행(서버 전용) ${extraFound.length}/${extra.length}문항이 번들에 있어요. 예: #${extraFound.slice(0, 5).map((q) => q.id).join(', #')}`);
+  process.exit(1);
+}
 
 if (serverMode) {
   if (found.length > 0) {

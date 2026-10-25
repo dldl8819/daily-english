@@ -66,6 +66,21 @@ describe('pickDaily', () => {
     expect(pickDaily(onlyEasy, '2026-10-21', 10)).toHaveLength(5);
   });
 
+  it('원하는 난이도의 새 문제를 다 봤으면 복습보다 가까운 난이도의 새 문제를 먼저 낸다', () => {
+    // 레벨 10은 중급 1 + 심화 4. 심화를 모두 봤으면 심화 복습 대신 새 중급(가까운 난이도)으로 채운다.
+    const hardSeen = ids(questions.filter((q) => q.difficulty === 3));
+    const picked = pickDaily(questions, '2026-10-21', 10, hardSeen);
+    expect(picked.some((q) => hardSeen.includes(q.id))).toBe(false);
+    expect(picked.map((q) => q.difficulty)).toEqual([2, 2, 2, 2, 2]);
+  });
+
+  it('새 문제가 하나도 없을 때만 복습한다', () => {
+    const allSeen = ids(questions);
+    const picked = pickDaily(questions, '2026-10-21', 10, allSeen);
+    expect(picked).toHaveLength(5);
+    expect([...picked.map((q) => q.difficulty)].sort()).toEqual([...difficultyMix(10)].sort());
+  });
+
   it('문제가 5개보다 적으면 있는 만큼만, 없으면 빈 배열', () => {
     expect(pickDaily(questions.slice(0, 3), '2026-10-21')).toHaveLength(3);
     expect(pickDaily([], '2026-10-21')).toEqual([]);

@@ -7,6 +7,8 @@ next-env.d.ts
 
 # 공개하지 않는 파일: 실제 문제 은행(샘플은 questions.sample.json), 운영 사정이 담긴 기획 문서
 src/data/questions.json
+# 1년 분량으로 늘린 추가 문제 은행. 서버 모드에서만 쓴다(기기 모드 번들에는 넣지 않는다).
+src/data/questions.extra.json
 docs/18_기능_확장_기획.md
 
 # 비밀값: 서버 비밀 키·mTLS 인증서·Workers 로컬 비밀값. 공개 저장소라 한 번 올라가면 키를 새로 발급해야 한다.

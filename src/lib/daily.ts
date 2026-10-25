@@ -45,7 +45,7 @@ function rank(id: number, key: string): number {
  * - 레벨에 맞는 난이도 구성(difficultyMix)을 따른다.
  * - 안 본 문제를 먼저 고르고, 다 봤으면 본 문제를 복습으로 낸다. 복습은 틀린 것, 오래전에 답한 것부터(records).
  * - 학습 목적의 분류(categories)에서만 고르고, 분류가 둘이면 번갈아 고른다.
- * - 원하는 난이도가 모자라면 가까운 난이도에서 채운다.
+ * - 원하는 난이도가 모자라면 가까운 난이도에서 채운다. 이때도 새 문제가 남아 있으면 복습보다 새 문제를 먼저 낸다.
  */
 export function pickDaily(
   questions: Question[],
@@ -78,17 +78,23 @@ export function pickDaily(
     if (picked.length >= Math.min(count, pool.length)) return;
     const category = order[slot % order.length];
     const byCloseness = (q: Question) => Math.abs(q.difficulty - difficulty);
-    const candidates = ordered.filter((q) => !used.has(q.id));
-    const best =
-      candidates.find((q) => q.difficulty === difficulty && q.category === category && !seenSet.has(q.id)) ??
-      candidates.find((q) => q.difficulty === difficulty && !seenSet.has(q.id)) ??
-      // 원하는 난이도의 새 문제가 없으면: 가까운 난이도, 같은 분류, 새 문제·복습 순서(ordered) 순으로 고른다.
-      [...candidates].sort(
+    // 가까운 난이도, 같은 분류, 복습 순서(ordered) 순으로 가장 알맞은 문제
+    const nearest = (list: Question[]) =>
+      [...list].sort(
         (a, b) =>
           byCloseness(a) - byCloseness(b) ||
           Number(a.category !== category) - Number(b.category !== category) ||
           position.get(a.id)! - position.get(b.id)!,
       )[0];
+    const candidates = ordered.filter((q) => !used.has(q.id));
+    const unseen = candidates.filter((q) => !seenSet.has(q.id));
+    const best =
+      unseen.find((q) => q.difficulty === difficulty && q.category === category) ??
+      unseen.find((q) => q.difficulty === difficulty) ??
+      // 원하는 난이도의 새 문제가 없으면 가까운 난이도의 새 문제를 먼저 낸다(하루 20문제씩 1년 동안 새 문제를 내기 위해서다).
+      // 새 문제가 모두 떨어졌을 때만 복습한다.
+      nearest(unseen) ??
+      nearest(candidates);
     if (best) {
       picked.push(best);
       used.add(best.id);

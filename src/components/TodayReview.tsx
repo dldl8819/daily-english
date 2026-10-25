@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import type { Question, SavedKind } from '@/lib/types';
 import { filledSentence } from '@/lib/saved';
 import { countCorrect } from '@/lib/daily';
+import Translation from './Translation';
 
 /** 복습 묶음 하나: 오늘의 5문제 또는 보너스 5문제 */
 export type ReviewGroup = {
@@ -67,6 +68,7 @@ export default function TodayReview({ groups, isSaved, onToggleSave }: Props) {
                     </div>
                   </dl>
                   <p className="saved-explain">{question.explanation}</p>
+                  <Translation text={question.translation} />
                   <div className="save-row" role="group" aria-label={`${group.title} ${i + 1}번 다시 볼 항목에 저장`}>
                     {(['sentence', 'word'] as const).map((kind) => {
                       const on = isSaved(question.id, kind);

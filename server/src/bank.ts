@@ -13,6 +13,7 @@ export function publicQuestion(q: Question): PublicQuestion {
   return { id: q.id, category: q.category, difficulty: q.difficulty, prompt: q.prompt, choices: q.choices };
 }
 
+/** 답한 뒤에 주는 부분. 해석은 있는 문항에만 붙인다. */
 export function gradedOf(q: Question): Graded {
-  return { answer: q.answer, explanation: q.explanation };
+  return { answer: q.answer, explanation: q.explanation, ...(q.translation ? { translation: q.translation } : {}) };
 }
