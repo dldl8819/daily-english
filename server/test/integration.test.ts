@@ -51,14 +51,15 @@ describe.skipIf(!API)('통합: Workers 런타임 + Supabase', () => {
     const today = await call<TodayResponse>('GET', `/daily?date=${date}&${PROFILE}`, token);
     expect(today.status).toBe(200);
     expect(today.body.daily.questions).toHaveLength(5);
-    expect(JSON.stringify(today.body)).not.toMatch(/"answer"|explanation/);
+    expect(JSON.stringify(today.body)).not.toMatch(/"answer"|explanation|translation/);
     // 다시 불러와도 저장된 같은 세트다.
     expect((await call<TodayResponse>('GET', `/daily?date=${date}&${PROFILE}`, token)).body.daily).toEqual(today.body.daily);
 
     const [q0, q1, q2] = today.body.daily.questions;
     expect((await answer(token, 'daily', q2.id, 0)).body).toMatchObject({ code: 'OUT_OF_ORDER' });
     const graded = await answer(token, 'daily', q0.id, BANK.get(q0.id)!.answer);
-    expect(graded.body).toEqual({ correct: true, answer: BANK.get(q0.id)!.answer, explanation: BANK.get(q0.id)!.explanation });
+    const { answer: right, explanation, translation } = BANK.get(q0.id)!;
+    expect(graded.body).toEqual({ correct: true, answer: right, explanation, ...(translation ? { translation } : {}) });
     // picks가 그대로일 때만 덧붙이는 조건(PostgREST 배열 비교)이 실제로 동작하는지
     expect((await answer(token, 'daily', q0.id, BANK.get(q0.id)!.answer)).status).toBe(200);
     expect((await answer(token, 'daily', q0.id, (BANK.get(q0.id)!.answer + 1) % 4)).status).toBe(409);
