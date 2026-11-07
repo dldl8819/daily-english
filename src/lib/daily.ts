@@ -62,39 +62,45 @@ export function pickDaily(
   // 목적에 맞는 문제가 하나도 없을 때(문제 은행이 비정상)만 전체에서 고른다.
   const inGoal = questions.filter((q) => categories.includes(q.category));
   const pool = inGoal.length > 0 ? inGoal : questions;
-  const ordered = [...pool].sort((a, b) => {
+  const rankOf = new Map(pool.map((q) => [q.id, rank(q.id, key + salt)]));
+  // 안 본 문제가 먼저, 본 문제는 복습 순서대로, 그 안에서는 날짜로 섞은 순서대로
+  const comesFirst = (a: Question, b: Question) => {
     const seenA = seenSet.has(a.id);
     const seenB = seenSet.has(b.id);
     if (seenA !== seenB) return Number(seenA) - Number(seenB);
     const review = seenA ? reviewPriority(records.get(a.id) ?? OLDEST, records.get(b.id) ?? OLDEST) : 0;
-    return review || rank(a.id, key + salt) - rank(b.id, key + salt);
-  });
-  const position = new Map(ordered.map((q, i) => [q.id, i]));
+    return review || rankOf.get(a.id)! - rankOf.get(b.id)!;
+  };
+  const unseen = pool.filter((q) => !seenSet.has(q.id));
   const picked: Question[] = [];
   const used = new Set<number>();
   const order: Category[] = dayNumber(key) % 2 === 0 ? categories : [...categories].reverse();
+  // 서버는 요청당 CPU 시간이 짧다(Workers 무료 플랜 10ms). 문제 은행 전체를 정렬하지 않고 자리마다 맨 앞 문제만 찾는다.
+  const firstOf = (list: Question[], fits: (q: Question) => boolean, compare = comesFirst) => {
+    let first: Question | undefined;
+    for (const q of list) {
+      if (!used.has(q.id) && fits(q) && (first === undefined || compare(q, first) < 0)) first = q;
+    }
+    return first;
+  };
+  const anyQuestion = () => true;
 
   difficultyMix(level, count).forEach((difficulty, slot) => {
     if (picked.length >= Math.min(count, pool.length)) return;
     const category = order[slot % order.length];
     const byCloseness = (q: Question) => Math.abs(q.difficulty - difficulty);
-    // 가까운 난이도, 같은 분류, 복습 순서(ordered) 순으로 가장 알맞은 문제
-    const nearest = (list: Question[]) =>
-      [...list].sort(
-        (a, b) =>
-          byCloseness(a) - byCloseness(b) ||
-          Number(a.category !== category) - Number(b.category !== category) ||
-          position.get(a.id)! - position.get(b.id)!,
-      )[0];
-    const candidates = ordered.filter((q) => !used.has(q.id));
-    const unseen = candidates.filter((q) => !seenSet.has(q.id));
+    // 가까운 난이도, 같은 분류, 복습 순서(comesFirst) 순으로 가장 알맞은 문제
+    const nearest = (a: Question, b: Question) =>
+      byCloseness(a) - byCloseness(b) ||
+      Number(a.category !== category) - Number(b.category !== category) ||
+      comesFirst(a, b);
     const best =
-      unseen.find((q) => q.difficulty === difficulty && q.category === category) ??
-      unseen.find((q) => q.difficulty === difficulty) ??
+      firstOf(unseen, (q) => q.difficulty === difficulty && q.category === category) ??
+      firstOf(unseen, (q) => q.difficulty === difficulty) ??
       // 원하는 난이도의 새 문제가 없으면 가까운 난이도의 새 문제를 먼저 낸다(하루 20문제씩 1년 동안 새 문제를 내기 위해서다).
       // 새 문제가 모두 떨어졌을 때만 복습한다.
-      nearest(unseen) ??
-      nearest(candidates);
+      firstOf(unseen, anyQuestion, nearest) ??
+      firstOf(pool, anyQuestion, nearest);
     if (best) {
       picked.push(best);
       used.add(best.id);

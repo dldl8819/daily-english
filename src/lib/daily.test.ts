@@ -81,6 +81,18 @@ describe('pickDaily', () => {
     expect([...picked.map((q) => q.difficulty)].sort()).toEqual([...difficultyMix(10)].sort());
   });
 
+  it('복습은 틀린 문제, 오래전에 본 문제 순서로 낸다', () => {
+    const [recent, old, wrong] = questions.filter((q) => q.category === 'dev' && q.difficulty === 1);
+    const records = new Map([
+      [recent.id, { date: '2026-10-20', correct: true }],
+      [old.id, { date: '2026-10-01', correct: true }],
+      [wrong.id, { date: '2026-10-20', correct: false }],
+    ]);
+    const seen = [recent.id, old.id, wrong.id];
+    const picked = pickDaily([recent, old, wrong], '2026-10-21', 1, seen, '', ['dev'], 3, records);
+    expect(ids(picked)).toEqual([wrong.id, old.id, recent.id]);
+  });
+
   it('문제가 5개보다 적으면 있는 만큼만, 없으면 빈 배열', () => {
     expect(pickDaily(questions.slice(0, 3), '2026-10-21')).toHaveLength(3);
     expect(pickDaily([], '2026-10-21')).toEqual([]);
