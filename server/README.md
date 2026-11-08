@@ -35,11 +35,18 @@ API_URL=http://127.0.0.1:8787 SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_PUBLI
   npx vitest run server/test/integration.test.ts
 ```
 
+## 실행 위치
+
+- 한국에서 보낸 요청이 Cloudflare 싱가포르(SIN)로 들어와 그곳에서 실행됐다. 답 하나에 서울 DB를 두 번 부르므로 느렸다(2026-11-08 측정).
+- `wrangler.jsonc`의 `placement.region`을 `aws:ap-northeast-2`(Supabase 서울)로 두어 서버 코드를 서울(ICN)에서 실행한다. 요청은 여전히 싱가포르로 들어와 서울로 넘어간다. [Placement 문서](https://developers.cloudflare.com/workers/configuration/placement/)
+- 확인: 응답 헤더 `cf-placement`가 `remote-ICN`이면 서울에서 실행된 것이다(`curl -sD - -o /dev/null <서버 주소>/api/v1/daily`).
+- 측정(이 PC, 잘못된 인증 코드 5번): 서버 안 대기 시간 평균 549ms → 153ms, 응답까지 평균 1.26초 → 0.90초.
+
 ## 서버 오류 보기 (Workers 로그)
 
 외부 모니터링 서비스 없이 Cloudflare의 Workers 로그로 본다(`wrangler.jsonc`의 `observability`).
 
-- **어디서**: Cloudflare 대시보드 > Workers & Pages > english-bite-api > Logs. 실시간으로 보려면 `npx wrangler tail --env production`.
+- **어디서**: Cloudflare 대시보드 > Workers & Pages > english-bite-api > Observability ([Workers Logs 문서](https://developers.cloudflare.com/workers/observability/logs/workers-logs/), 2026-11-08 확인). 실시간으로 보려면 `npx wrangler tail --env production`.
 - **무엇이 남나**
   - 요청마다 호출 로그 1건(메서드, 주소, 상태 코드, 걸린 시간).
   - 서버 오류(5xx)와 토스 API 요청 한도 초과(429)는 `event: api_error` 로그를 따로 남긴다(`src/app.ts`의 `logFailure`). 필드: `status`, `code`, `detail`(원인), `method`, `path`, `ray`, 처리하지 못한 예외는 `stack` 앞부분.
@@ -69,7 +76,7 @@ API_URL=http://127.0.0.1:8787 SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_PUBLI
    출력된 ID를 `wrangler.jsonc`의 `REPLACE_WITH_MTLS_CERTIFICATE_ID` 자리에 넣어요.
 2. **DB 마이그레이션**: 운영 Supabase에 `supabase/migrations`의 새 마이그레이션을 적용해요.
    ```bash
-   npx supabase link --project-ref rbmaztwsrsyaarfysxcq
+   npx supabase link --project-ref vgxogzjygedbojmseouz
    npx supabase db push
    ```
 3. **비밀값**

@@ -72,7 +72,7 @@
 | 4.19 | 닉네임 저장 버튼: 바뀐 게 있을 때만 활성, 비활성 버튼 공통 스타일 | `SettingsView`, `globals.css` | - | 완료, 20261021-6 검수 중 |
 | 4.18 | 보상형 광고 그룹 생성 → 운영 광고 ID로 빌드 | 콘솔 | - | 대기 (콘솔이 리워드 지면 신규 생성 막음) |
 | 4.10 | 사용자 식별 방식·서버 실행 위치 결정 | 결정 메모 | - | 완료 (2026-10-23: 익명 식별키 교환 + Cloudflare Workers, docs/09 5장) |
-| 4.11 | 서버 구현 (식별 교환, 문제 내기·채점·완료·보너스 API), 클라이언트 서버 모드 | `server/`, `src/lib/api.ts`·`remote.ts` | 3일 | 진행 (로컬 검증 완료. 운영 배포: mTLS 인증서·비밀값·마이그레이션 적용, server/README.md) |
+| 4.11 | 서버 구현 (식별 교환, 문제 내기·채점·완료·보너스 API), 클라이언트 서버 모드 | `server/`, `src/lib/api.ts`·`remote.ts` | 3일 | 진행 (로컬 검증 완료. 2026-11-08 mTLS 인증서 등록, 운영 DB 마이그레이션 적용, 비밀값 등록, 서버 배포(`https://english-bite-api.englishbite.workers.dev`), 실행 위치를 서울로 지정(`placement.region`, 토스 인증 서버 대기 시간 평균 549ms → 153ms). 남은 일: 서버 모드 앱 빌드·QR 테스트, server/README.md) |
 | 4.20 | 닉네임·다시 볼 항목 서버 저장(기기 간 동기화) | API, DB | - | 대기 |
 | 4.21 | CI (GitHub Actions): 타입·테스트·빌드, 서버 모드 번들 검사, 통합(Supabase + wrangler dev), Dependabot | `.github/`, `scripts/check-bundle.mjs`, `server/scripts/integration.sh` | - | 완료 (2026-10-23, 첫 push 전) |
 | 4.22 | 서버 오류 로그: Workers 로그·Issues, api_error 구조화 로그 (Sentry는 쓰지 않음) | `server/wrangler.jsonc`, `server/src/app.ts` | - | 완료, 운영 배포 뒤 호출 로그 헤더 확인 |

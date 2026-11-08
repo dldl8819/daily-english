@@ -4,7 +4,8 @@
   "name": "english-bite-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  // 서버 오류는 Workers 로그(대시보드 > Workers > english-bite-api > Logs)와 Issues(5xx·예외 묶음, 공개 베타)로 본다.
+  "placement": { "region": "aws:ap-northeast-2" },
+  // 서버 오류는 Workers 로그(대시보드 > Workers & Pages > english-bite-api > Observability)와 Issues(5xx·예외 묶음, 공개 베타)로 본다.
   // 요청마다 호출 로그 1건, 서버 오류는 api_error 이벤트(server/src/app.ts)를 남긴다. 무료 플랜은 하루 20만 건, 3일 보관.
   "observability": {
     "enabled": true,
@@ -20,6 +21,14 @@
   "env": {
     "production": {
       "name": "english-bite-api",
+      // 서버 주소: https://english-bite-api.englishbite.workers.dev
+      "workers_dev": true,
+      // 버전마다 생기는 공개 주소(Version URLs)를 끈다. 이 주소로 온 요청은 Workers Logs·wrangler tail에 남지 않는다.
+      // https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/
+      "preview_urls": false,
+      // 서버를 DB(Supabase, AWS 서울)와 토스 API 가까이에서 실행한다. 한국 요청이 싱가포르(SIN)에서 처리돼 서울 DB 왕복이 느렸다(2026-11-08 측정).
+      // 실제 실행 위치는 응답 헤더 cf-placement로 본다. https://developers.cloudflare.com/workers/configuration/placement/
+      "placement": { "region": "aws:ap-northeast-2" },
       // 상속되는 키지만, 환경마다 다시 적으라는 문서도 있어 운영에는 명시해 둔다.
       "observability": {
         "enabled": true,
@@ -31,10 +40,10 @@
         // SDK 3.1.0 이상 번들의 미니앱 Origin: 운영, 콘솔 QR 테스트
         "ALLOWED_ORIGINS": "https://english-bite.apps.tossmini.com,https://english-bite.private-apps.tossmini.com",
         "TOSS_API_BASE": "https://apps-in-toss-api.toss.im",
-        "SUPABASE_URL": "https://rbmaztwsrsyaarfysxcq.supabase.co"
+        "SUPABASE_URL": "https://vgxogzjygedbojmseouz.supabase.co"
       },
       // 콘솔 > 개발 > mTLS 인증서로 받은 인증서를 `npx wrangler mtls-certificate upload`로 올리고 나온 ID를 넣는다.
-      "mtls_certificates": [{ "binding": "TOSS_MTLS", "certificate_id": "REPLACE_WITH_MTLS_CERTIFICATE_ID" }]
+      "mtls_certificates": [{ "binding": "TOSS_MTLS", "certificate_id": "ee9bd560-199a-45b5-9220-59746aa24201" }]
     }
   }
 }
