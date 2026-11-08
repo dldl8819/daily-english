@@ -1,7 +1,7 @@
 'use client';
 
 import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { Progress, Question, SavedKind, StudyProfile } from '@/lib/types';
+import type { Progress, Question, StudyProfile } from '@/lib/types';
 import { ApiError, SERVER_MODE } from '@/lib/api';
 import type { SetKind } from '@/lib/apiTypes';
 import { loadLocalBank } from '@/lib/localBank';
@@ -32,6 +32,7 @@ import { backfillWrong, noteAnswer, removeWrong, wrongEntries } from '@/lib/wron
 import BannerAd from './BannerAd';
 import BonusSection from './BonusSection';
 import SavedView from './SavedView';
+import SaveButton from './SaveButton';
 import Prompt from './Prompt';
 import SettingsView, { type SettingsSection } from './SettingsView';
 import StudyWizard from './StudyWizard';
@@ -88,8 +89,8 @@ type QuizProps = {
   picks: number[];
   onPick: (index: number, choice: number) => void;
   onFinish: () => void;
-  isSaved: (questionId: number, kind: SavedKind) => boolean;
-  onToggleSave: (questionId: number, kind: SavedKind) => void;
+  isSaved: (questionId: number) => boolean;
+  onToggleSave: (questionId: number) => void;
   /** 스크린리더용 이름 앞말. 예: "보너스" */
   label?: string;
   /** 처음 그릴 때 문제 제목으로 포커스를 옮긴다 (보너스 문제가 열린 직후) */
@@ -107,6 +108,7 @@ function Quiz({ questions, picks, onPick, onFinish, isSaved, onToggleSave, label
   const feedbackRef = useRef<HTMLDivElement>(null);
   const moved = useRef(autoFocus);
   const promptId = useId();
+  const translationId = useId();
 
   const question = questions[index];
   const picked = picks[index] ?? null;
@@ -157,6 +159,7 @@ function Quiz({ questions, picks, onPick, onFinish, isSaved, onToggleSave, label
       <p id={promptId} className="prompt" lang="en">
         <Prompt text={question.prompt} />
       </p>
+      {answered && <Translation id={translationId} text={question.translation} />}
       <div role="group" aria-labelledby={promptId}>
         {question.choices.map((text, i) => {
           const state = !answered ? '' : i === question.answer ? 'ok' : i === picked ? 'bad' : '';
@@ -192,7 +195,12 @@ function Quiz({ questions, picks, onPick, onFinish, isSaved, onToggleSave, label
       )}
       {answered && (
         <>
-          <div className="explain" ref={feedbackRef} tabIndex={-1}>
+          <div
+            className="explain"
+            ref={feedbackRef}
+            tabIndex={-1}
+            aria-describedby={question.translation ? translationId : undefined}
+          >
             <p className="verdict">
               {isCorrect ? (
                 '정답이에요.'
@@ -203,24 +211,9 @@ function Quiz({ questions, picks, onPick, onFinish, isSaved, onToggleSave, label
               )}
             </p>
             <p>{question.explanation}</p>
-            <Translation text={question.translation} />
           </div>
-          <div className="save-row" role="group" aria-label="다시 볼 항목에 저장">
-            {(['sentence', 'word'] as const).map((kind) => {
-              const on = isSaved(question.id, kind);
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  className="small-btn"
-                  aria-pressed={on}
-                  onClick={() => onToggleSave(question.id, kind)}
-                >
-                  {on && <span aria-hidden="true">✓ </span>}
-                  {kind === 'sentence' ? '문장 저장' : '단어 저장'}
-                </button>
-              );
-            })}
+          <div className="save-row">
+            <SaveButton on={isSaved(question.id)} label="다시 볼 항목에 저장" onToggle={() => onToggleSave(question.id)} />
           </div>
           <button type="button" className="btn" onClick={() => !busy && next()} aria-disabled={busy}>
             {isLast ? '결과 보기' : '다음 문제'}
@@ -516,9 +509,9 @@ export default function DailyChallenge() {
     });
   };
 
-  const toggleSave = (questionId: number, kind: SavedKind) => {
-    if (!isSaved(current, questionId, kind)) void track('item_save', { kind });
-    update(toggleSaved(current, questionId, kind, new Date()));
+  const toggleSave = (questionId: number) => {
+    if (!isSaved(current, questionId)) void track('item_save');
+    update(toggleSaved(current, questionId, new Date()));
   };
 
   if (view === 'saved') {
@@ -548,7 +541,7 @@ export default function DailyChallenge() {
     return (
       <TodayReview
         groups={groups}
-        isSaved={(questionId, kind) => isSaved(current, questionId, kind)}
+        isSaved={(questionId) => isSaved(current, questionId)}
         onToggleSave={toggleSave}
       />
     );
@@ -606,7 +599,7 @@ export default function DailyChallenge() {
             // 합친 결과 카드로 돌아오면 제목으로 포커스를 옮긴다.
             setFinishedNow(true);
           }}
-          isSaved={(questionId, kind) => isSaved(current, questionId, kind)}
+          isSaved={(questionId) => isSaved(current, questionId)}
           onToggleSave={toggleSave}
           busy={SERVER_MODE ? busy : undefined}
           error={actionError}
@@ -668,7 +661,7 @@ export default function DailyChallenge() {
             SERVER_MODE ? answerRemote('daily', index, choice) : answer(recordPick(current, index, choice), questions[index], choice)
           }
           onFinish={finish}
-          isSaved={(questionId, kind) => isSaved(current, questionId, kind)}
+          isSaved={(questionId) => isSaved(current, questionId)}
           onToggleSave={toggleSave}
           busy={SERVER_MODE ? busy : undefined}
           error={actionError}

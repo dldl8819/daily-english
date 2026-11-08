@@ -138,9 +138,13 @@ describe('서버 모드', () => {
     expect(ids.map((id) => cache()[id].translation)).toEqual(ids.map(() => undefined));
     expect(container.textContent).not.toContain('문장 해석');
 
-    // 답하면 해설 아래에 문장 해석이 나온다.
+    // 답하면 영어 문장 바로 아래에 문장 해석이 나온다. 포커스가 가는 해설은 해석을 설명으로 함께 읽힌다.
     await user.click(choiceButtons()[answerOf(ids[0])]);
-    await waitFor(() => expect(container.querySelector('.explain .translation')?.textContent).toBe(`문장 해석해석 #${ids[0]}`));
+    await waitFor(() => expect(container.querySelector('.prompt + .translation')?.textContent).toBe(`문장 해석해석 #${ids[0]}`));
+    expect(container.querySelector('.explain .translation')).toBeNull();
+    const translationId = container.querySelector('.prompt + .translation')!.id;
+    expect(translationId).not.toBe('');
+    expect(container.querySelector('.explain')!.getAttribute('aria-describedby')).toBe(translationId);
     expect(cache()[ids[0]].translation).toBe(`해석 #${ids[0]}`);
     expect(cache()[ids[1]].translation).toBeUndefined();
     await user.click(screen.getByRole('button', { name: '다음 문제' }));

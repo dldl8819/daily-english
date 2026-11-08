@@ -10,7 +10,7 @@ export type AppEvent =
   | 'bonus_open' // 보너스 5문제 열림 (source: share | ad)
   | 'bonus_complete' // 보너스 5문제 완료
   | 'share_app' // 친구에게 알리기 공유 창 완료
-  | 'item_save' // 다시 볼 문장·단어 저장 (kind)
+  | 'item_save' // 다시 볼 항목 저장 (2026-11-08부터 kind 없음)
   | 'reminder_agree' // 학습 알림 동의
   | 'study_profile_set' // 맞춤 문제 설정 (reason, career_focus, self_level, daily_goal, from: onboarding | settings)
   | 'wrong_retry'; // 틀린 문제 다시 풀기 (correct)

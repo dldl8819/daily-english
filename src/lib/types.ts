@@ -100,11 +100,11 @@ export type WrongItem = {
   date: string;
 };
 
-/** sentence: 정답을 채운 문장, word: 정답 단어·표현 */
-export type SavedKind = 'sentence' | 'word';
-
+/**
+ * 다시 볼 항목. 문제마다 하나다. 2026-11-08 전에는 "문장 저장"·"단어 저장"을 따로 두었지만(kind),
+ * 같은 문제를 다른 모양으로 보여 줄 뿐이라 합쳤다. 예전 기록은 parseProgress가 문제마다 하나로 합친다.
+ */
 export type SavedItem = {
   questionId: number;
-  kind: SavedKind;
   savedAt: string;
 };

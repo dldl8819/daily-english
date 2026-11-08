@@ -53,14 +53,18 @@ function parseAttempt(value: unknown): Attempt | null {
     : null;
 }
 
+/**
+ * 저장 항목을 읽는다. 예전 기록의 kind(문장·단어)는 버리고, 같은 문제는 가장 최근에 저장한 하나만 남긴다.
+ * 목록은 최근 저장한 것부터다(toggleSaved가 맨 앞에 넣는 순서와 같다).
+ */
 function parseSaved(value: unknown): SavedItem[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(
-    (s): s is SavedItem =>
-      typeof s?.questionId === 'number' &&
-      (s.kind === 'sentence' || s.kind === 'word') &&
-      typeof s.savedAt === 'string',
-  );
+  const valid = value
+    .filter((s) => typeof s?.questionId === 'number' && typeof s.savedAt === 'string')
+    .map((s): SavedItem => ({ questionId: s.questionId, savedAt: s.savedAt }))
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  const seen = new Set<number>();
+  return valid.filter((s) => !seen.has(s.questionId) && seen.add(s.questionId));
 }
 
 const REASONS: Reason[] = ['communication', 'career', 'hobby', 'travel', 'study'];

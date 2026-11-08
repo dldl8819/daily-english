@@ -53,14 +53,31 @@ describe('parseProgress', () => {
       JSON.stringify({
         nickname: '민식',
         saved: [
-          { questionId: 3, kind: 'word', savedAt: '2026-10-21T00:00:00.000Z' },
-          { questionId: 'x', kind: 'word', savedAt: '2026-10-21T00:00:00.000Z' },
-          { questionId: 4, kind: 'phrase', savedAt: '2026-10-21T00:00:00.000Z' },
+          { questionId: 3, savedAt: '2026-10-21T00:00:00.000Z' },
+          { questionId: 'x', savedAt: '2026-10-21T00:00:00.000Z' },
+          { questionId: 4, savedAt: 5 },
         ],
       }),
     );
     expect(p.nickname).toBe('민식');
-    expect(p.saved).toEqual([{ questionId: 3, kind: 'word', savedAt: '2026-10-21T00:00:00.000Z' }]);
+    expect(p.saved).toEqual([{ questionId: 3, savedAt: '2026-10-21T00:00:00.000Z' }]);
+  });
+
+  it('예전 문장·단어 저장은 문제마다 하나로 합치고, 더 최근에 저장한 시각을 남긴다', () => {
+    // 2026-11-08 전에는 문제마다 "문장 저장"과 "단어 저장"을 따로 저장했다(kind).
+    const p = parseProgress(
+      JSON.stringify({
+        saved: [
+          { questionId: 3, kind: 'sentence', savedAt: '2026-10-21T00:00:00.000Z' },
+          { questionId: 5, kind: 'word', savedAt: '2026-10-22T00:00:00.000Z' },
+          { questionId: 3, kind: 'word', savedAt: '2026-10-23T00:00:00.000Z' },
+        ],
+      }),
+    );
+    expect(p.saved).toEqual([
+      { questionId: 3, savedAt: '2026-10-23T00:00:00.000Z' },
+      { questionId: 5, savedAt: '2026-10-22T00:00:00.000Z' },
+    ]);
   });
 
   it('사용자 식별키를 읽고, 문자열이 아니면 버린다', () => {

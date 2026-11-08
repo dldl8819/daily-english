@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { Question, SavedKind } from '@/lib/types';
+import type { Question } from '@/lib/types';
 import { filledSentence } from '@/lib/saved';
 import { countCorrect } from '@/lib/daily';
+import SaveButton from './SaveButton';
 import Translation from './Translation';
 
 /** 복습 묶음 하나: 오늘의 5문제 또는 보너스 5문제 */
@@ -16,8 +17,8 @@ export type ReviewGroup = {
 
 type Props = {
   groups: ReviewGroup[];
-  isSaved: (questionId: number, kind: SavedKind) => boolean;
-  onToggleSave: (questionId: number, kind: SavedKind) => void;
+  isSaved: (questionId: number) => boolean;
+  onToggleSave: (questionId: number) => void;
 };
 
 /** 오늘 푼 문제 복습(보너스 포함): 정답을 채운 문장, 내 답, 정답, 해설. XP와는 무관하다. 답한 문제만 보여 준다. */
@@ -55,6 +56,7 @@ export default function TodayReview({ groups, isSaved, onToggleSave }: Props) {
                   <p className="saved-text" lang="en">
                     {filledSentence(question)}
                   </p>
+                  <Translation text={question.translation} />
                   <dl className="review-answers">
                     {!right && picked !== undefined && (
                       <div>
@@ -68,23 +70,12 @@ export default function TodayReview({ groups, isSaved, onToggleSave }: Props) {
                     </div>
                   </dl>
                   <p className="saved-explain">{question.explanation}</p>
-                  <Translation text={question.translation} />
-                  <div className="save-row" role="group" aria-label={`${group.title} ${i + 1}번 다시 볼 항목에 저장`}>
-                    {(['sentence', 'word'] as const).map((kind) => {
-                      const on = isSaved(question.id, kind);
-                      return (
-                        <button
-                          key={kind}
-                          type="button"
-                          className="small-btn"
-                          aria-pressed={on}
-                          onClick={() => onToggleSave(question.id, kind)}
-                        >
-                          {on && <span aria-hidden="true">✓ </span>}
-                          {kind === 'sentence' ? '문장 저장' : '단어 저장'}
-                        </button>
-                      );
-                    })}
+                  <div className="save-row">
+                    <SaveButton
+                      on={isSaved(question.id)}
+                      label={`${group.title} ${i + 1}번 다시 볼 항목에 저장`}
+                      onToggle={() => onToggleSave(question.id)}
+                    />
                   </div>
                 </li>
               );

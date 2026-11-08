@@ -54,31 +54,34 @@ localStorage.clear();
 afterEach(cleanup);
 
 describe('다시 볼 항목과 설정', () => {
-  it('답한 뒤 문장·단어를 저장하고, 목록 화면에서 보고 지운다', async () => {
+  it('답한 뒤 문제를 저장하고, 목록 화면에서 보고 지운다', async () => {
     const user = userEvent.setup();
     const { container } = render(<DailyChallenge />);
     await screen.findByRole('heading', { level: 2, name: /1번째 문제/ });
     const q = currentQuestion(0);
 
     await user.click(choiceButtons()[q.answer]);
-    const saveSentence = screen.getByRole('button', { name: /문장 저장/ });
-    expect(saveSentence.getAttribute('aria-pressed')).toBe('false');
-    await user.click(saveSentence);
-    await user.click(screen.getByRole('button', { name: /단어 저장/ }));
-    expect(saveSentence.getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: '다시 볼 항목 2개' })).toBeTruthy();
+    // 저장 버튼은 하나다(예전의 "문장 저장"·"단어 저장"을 합쳤다).
+    const save = screen.getByRole('button', { name: '다시 볼 항목에 저장' });
+    expect(screen.queryByRole('button', { name: /문장 저장|단어 저장/ })).toBeNull();
+    expect(save.getAttribute('aria-pressed')).toBe('false');
+    await user.click(save);
+    expect(save.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: '다시 볼 항목 1개' })).toBeTruthy();
     await expectNoA11yViolations(container);
 
-    await user.click(screen.getByRole('button', { name: '다시 볼 항목 2개' }));
+    await user.click(screen.getByRole('button', { name: '다시 볼 항목 1개' }));
     const heading = screen.getByRole('heading', { level: 1, name: '다시 볼 항목' });
     expect(document.activeElement).toBe(heading);
     const answer = q.choices[q.answer];
-    expect(container.textContent).toContain(q.prompt.replace('___', answer));
+    const sentence = q.prompt.replace('___', answer);
+    expect(container.querySelector('.saved-text')!.textContent).toBe(sentence);
+    expect(container.querySelector('.saved-text strong')!.textContent).toBe(answer);
     expect(container.querySelector('.saved-text')!.getAttribute('lang')).toBe('en');
     await expectNoA11yViolations(container);
 
-    await user.click(screen.getByRole('button', { name: `${answer} 삭제` }));
-    expect(screen.getByText(/저장한 단어가 없어요/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: `${sentence} 삭제` }));
+    expect(screen.getByText(/저장한 문제가 없어요/)).toBeTruthy();
 
     // 홈으로 돌아가면 제목에 포커스가 간다.
     await goBack();

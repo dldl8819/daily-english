@@ -30,6 +30,7 @@ function WrongItemCard({ entry, onRetry, onCorrect, onConfirm }: ItemProps) {
   const answered = picked !== null;
   const right = picked === question.answer;
   const headingId = `wrong-${question.id}`;
+  const translationId = `${headingId}-translation`;
 
   useEffect(() => {
     if (answered) feedbackRef.current?.focus();
@@ -46,6 +47,7 @@ function WrongItemCard({ entry, onRetry, onCorrect, onConfirm }: ItemProps) {
       <p className="prompt" lang="en" id={`${headingId}-prompt`}>
         <Prompt text={question.prompt} />
       </p>
+      {answered && <Translation id={translationId} text={question.translation} />}
       <div role="group" aria-labelledby={`${headingId}-prompt`}>
         {question.choices.map((text, i) => {
           const state = !answered ? '' : i === question.answer ? 'ok' : i === picked ? 'bad' : '';
@@ -73,7 +75,12 @@ function WrongItemCard({ entry, onRetry, onCorrect, onConfirm }: ItemProps) {
         })}
       </div>
       {answered && (
-        <div className="explain" ref={feedbackRef} tabIndex={-1}>
+        <div
+          className="explain"
+          ref={feedbackRef}
+          tabIndex={-1}
+          aria-describedby={question.translation ? translationId : undefined}
+        >
           <p className="verdict">
             {right ? (
               '이번에는 맞혔어요. 목록에서 빠져요.'
@@ -84,7 +91,6 @@ function WrongItemCard({ entry, onRetry, onCorrect, onConfirm }: ItemProps) {
             )}
           </p>
           <p>{question.explanation}</p>
-          <Translation text={question.translation} />
           {right && (
             <button type="button" className="btn" onClick={() => onConfirm(question.id)}>
               확인
