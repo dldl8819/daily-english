@@ -9,9 +9,12 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const selfTest = process.argv.includes('--self-test');
 
-/** next build와 같은 우선순위로 서버 주소를 읽는다: 환경 변수 > .env.production.local > .env.production */
+/**
+ * next build와 같은 우선순위로 서버 주소를 읽는다: 환경 변수 > .env.production.local > .env.production
+ * next build는 환경 변수가 정의돼 있으면 빈 값이어도 .env 파일보다 먼저 쓴다(빈 값 = 기기 모드). 여기도 같게 본다.
+ */
 function apiBaseUrl() {
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) return process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (process.env.NEXT_PUBLIC_API_BASE_URL !== undefined) return process.env.NEXT_PUBLIC_API_BASE_URL;
   for (const file of ['.env.production.local', '.env.production']) {
     const path = join(root, file);
     if (!existsSync(path)) continue;

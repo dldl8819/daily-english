@@ -50,6 +50,9 @@ jobs:
         run: npm test
 
       - name: 기기 모드 빌드, 문제 은행 검사기 자체 점검
+        # .env.production에 운영 서버 주소가 있다. 빈 값으로 덮어 기기 모드로 빌드한다(환경 변수가 .env 파일보다 먼저다).
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ''
         run: |
           npm run build
           npm run check:bundle -- --self-test
