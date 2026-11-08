@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import sample from '../../src/data/questions.sample.json';
-import type { AnswerResponse, CompleteResponse, SetView, TodayResponse } from '../../src/lib/apiTypes';
+import type { AnswerResponse, CompleteResponse, ProgressResponse, SetView, TodayResponse } from '../../src/lib/apiTypes';
 import type { Question } from '../../src/lib/types';
 import { type AppDeps, createApp } from '../src/app';
 import { createBank } from '../src/bank';
@@ -269,6 +269,17 @@ describe('완료와 보너스', () => {
     expect(done.body).toEqual({ result: { correct: 4, total: 5, xpGained: 45 }, me: { xp: 45, level: 1, streak: 1, lastDate: DATE } });
     expect((await completeOf(app, token, 'daily')).body).toEqual(done.body);
     expect((await answerOf(app, token, 'daily', daily.questions[4].id, answerKey(daily.questions[4].id))).status).toBe(409);
+  });
+
+  it('마치기 전에도 맞힌 문제마다 XP가 쌓이고, 마치면 완료 보너스만 더해진다', async () => {
+    const { app } = setup();
+    const token = await login(app, 'a');
+    const daily = (await todayOf(app, token)).body.daily;
+    const [q0, q1] = daily.questions;
+    await answerOf(app, token, 'daily', q0.id, answerKey(q0.id));
+    await answerOf(app, token, 'daily', q1.id, (answerKey(q1.id) + 1) % 4);
+    expect((await call<ProgressResponse>(app, 'GET', `/me/progress?date=${DATE}`, { token })).body).toMatchObject({ xp: 10, todayCompleted: false });
+    expect((await todayOf(app, token)).body.me.xp).toBe(10);
   });
 
   it('보너스는 오늘의 문제를 마친 뒤에만, 방법마다 한 번, 겹치지 않는 5문제다', async () => {

@@ -46,10 +46,15 @@ function parseToday(value: unknown): TodayResult | null {
     : null;
 }
 
+/** 답할 때 이미 준 XP. 0 이상의 정수만 받고, 없으면 필드를 두지 않는다(2026-11-08 전 기록). */
+function xpGrantedOf(value: unknown): { xpGranted?: number } {
+  return Number.isInteger(value) && (value as number) >= 0 ? { xpGranted: value as number } : {};
+}
+
 function parseAttempt(value: unknown): Attempt | null {
   const a = value as Partial<Attempt> | null;
   return a && typeof a.date === 'string' && isNumberArray(a.ids) && isNumberArray(a.picks)
-    ? { date: a.date, ids: a.ids, picks: a.picks, review: isNumberArray(a.review) ? a.review : [] }
+    ? { date: a.date, ids: a.ids, picks: a.picks, review: isNumberArray(a.review) ? a.review : [], ...xpGrantedOf(a.xpGranted) }
     : null;
 }
 
@@ -131,7 +136,7 @@ function parseBonus(value: unknown): BonusSet[] {
         ? { correct: r.correct, total: r.total, xpGained: r.xpGained }
         : null;
     return typeof b?.date === 'string' && (b.source === 'share' || b.source === 'ad') && isNumberArray(b.ids) && isNumberArray(b.picks)
-      ? [{ date: b.date, source: b.source, ids: b.ids, picks: b.picks, result, review: isNumberArray(b.review) ? b.review : [] }]
+      ? [{ date: b.date, source: b.source, ids: b.ids, picks: b.picks, result, review: isNumberArray(b.review) ? b.review : [], ...xpGrantedOf(b.xpGranted) }]
       : [];
   });
 }

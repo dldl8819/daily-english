@@ -97,6 +97,10 @@ p { margin: 0; }
 .choice[aria-disabled='true'] { cursor: default; }
 .choice.ok { border: 2px solid var(--ok); background: var(--ok-soft); }
 .choice.bad { border: 2px solid var(--bad); background: var(--bad-soft); }
+/* 보기 글자와, 답한 뒤 붙는 보기 설명(뜻·형태). 색은 보기 글자와 같아 정답·오답 배경 위 대비가 그대로다 */
+.choice-text { display: flex; flex-direction: column; gap: 0.125rem; }
+.choice-note { font-size: 0.875rem; font-weight: 400; }
+.xp-gain { white-space: nowrap; }
 .mark { flex-shrink: 0; font-size: 0.875rem; font-weight: 700; }
 .choice.ok .mark { color: var(--ok); }
 .choice.bad .mark { color: var(--bad); }

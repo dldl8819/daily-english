@@ -80,6 +80,17 @@ describe('parseProgress', () => {
     ]);
   });
 
+  it('답할 때 이미 준 XP(xpGranted)를 읽고, 0 이상의 정수가 아니면 버린다', () => {
+    const attempt = { date: '2026-11-08', ids: [1, 2], picks: [0], review: [] };
+    const bonus = { date: '2026-11-08', source: 'share', ids: [3], picks: [], result: null, review: [] };
+    const p = parseProgress(JSON.stringify({ attempt: { ...attempt, xpGranted: 10 }, bonus: [{ ...bonus, xpGranted: 20 }] }));
+    expect(p.attempt?.xpGranted).toBe(10);
+    expect(p.bonus[0].xpGranted).toBe(20);
+    const bad = parseProgress(JSON.stringify({ attempt: { ...attempt, xpGranted: -5 }, bonus: [{ ...bonus, xpGranted: 'x' }] }));
+    expect(bad.attempt).toEqual(attempt);
+    expect(bad.bonus[0]).not.toHaveProperty('xpGranted');
+  });
+
   it('사용자 식별키를 읽고, 문자열이 아니면 버린다', () => {
     expect(parseProgress(JSON.stringify({ userKey: 'abc' })).userKey).toBe('abc');
     expect(parseProgress(JSON.stringify({ userKey: 1 })).userKey).toBeNull();

@@ -100,7 +100,7 @@ describe('setStudyProfile', () => {
 
   it('오늘 문제를 풀기 시작했으면 그대로 두고 설정만 바꾼다', () => {
     const started = startAttempt({ ...EMPTY_PROGRESS, profile: profile() }, questions, key);
-    const answered = recordPick(started, 0, 0);
+    const answered = recordPick(started, 0, 0, false);
     const changed = setStudyProfile(answered, profile({ reason: 'study', careerFocus: null, dailyGoal: 20 }), questions, key);
     expect(changed.attempt).toEqual(answered.attempt);
     expect(changed.profile?.reason).toBe('study');

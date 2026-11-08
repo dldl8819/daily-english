@@ -5,6 +5,7 @@ import type { Question } from '@/lib/types';
 import { CATEGORY_LABEL } from '@/lib/study';
 import type { WrongEntry } from '@/lib/wrong';
 import Prompt from './Prompt';
+import ChoiceText from './ChoiceText';
 import Translation from './Translation';
 
 type Props = {
@@ -64,7 +65,7 @@ function WrongItemCard({ entry, onRetry, onCorrect, onConfirm }: ItemProps) {
                 if (i === question.answer) onCorrect(question.id);
               }}
             >
-              <span lang="en">{text}</span>
+              <ChoiceText text={text} note={answered ? question.choiceNotes?.[i] : undefined} />
               {answered && i === question.answer && (
                 <span className="mark">
                   <span aria-hidden="true">✓ </span>정답

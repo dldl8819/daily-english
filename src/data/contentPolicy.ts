@@ -29,12 +29,20 @@ export const BANNED_KO = ['죽이', '죽는', '죽었', '죽음', '살인', '음
 const EN = new RegExp(`\\b(${BANNED_EN.join('|')})\\b`, 'i');
 
 /** 걸린 표현 목록. 비어 있으면 통과다. */
-export function contentViolations(question: { prompt: string; choices: string[]; explanation: string; translation?: string }): string[] {
-  const text = [question.prompt, ...question.choices].join(' | ');
+export function contentViolations(question: {
+  prompt: string;
+  choices: string[];
+  explanation: string;
+  translation?: string;
+  choiceNotes?: string[];
+}): string[] {
+  const notes = question.choiceNotes ?? [];
+  // 보기 설명은 한국어지만 to부정사·-ing형처럼 영어가 섞이므로 영어 검사에도 넣는다.
+  const text = [question.prompt, ...question.choices, ...notes].join(' | ');
   const hits: string[] = [];
   const en = text.match(EN);
   if (en) hits.push(en[0]);
-  const korean = [question.explanation, question.translation ?? ''].join(' | ');
+  const korean = [question.explanation, question.translation ?? '', ...notes].join(' | ');
   for (const word of BANNED_KO) if (korean.includes(word)) hits.push(word);
   return hits;
 }

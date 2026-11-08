@@ -32,6 +32,11 @@ export type Question = {
   explanation: string;
   /** 정답을 채운 문장의 한국어 해석. 정답을 알려 주므로 답한 뒤에만 보여 준다. 아직 없는 문항도 있다. */
   translation?: string;
+  /**
+   * 보기마다 짧은 한국어 설명(choices와 같은 순서, 4개). 단어·표현은 뜻, 형태를 고르는 문제는 형태(동명사, to부정사, 과거형 등).
+   * 오답을 지우는 단서가 되므로 답한 뒤에만 보여 준다. 아직 없는 문항도 있다(2026-11-08부터 채우는 중). 규칙은 src/data/choiceNotes.ts
+   */
+  choiceNotes?: string[];
 };
 
 export type TodayResult = {
@@ -48,6 +53,8 @@ export type Attempt = {
   picks: number[];
   /** ids 중 고를 때 이미 본 적 있던 문제(복습). 새 문제를 다 본 뒤에만 생긴다. */
   review: number[];
+  /** 답할 때마다 이미 준 XP(xpForPick). 마칠 때 합계와의 차이만 더한다. 2026-11-08 전 기록에는 없다(0으로 본다). */
+  xpGranted?: number;
 };
 
 /** 보너스 문제를 여는 방법. 방법마다 하루 한 번이다. */
@@ -62,6 +69,8 @@ export type BonusSet = {
   result: { correct: number; total: number; xpGained: number } | null;
   /** ids 중 복습 문제 */
   review: number[];
+  /** 답할 때마다 이미 준 XP. Attempt.xpGranted와 같다. */
+  xpGranted?: number;
 };
 
 export type Progress = {

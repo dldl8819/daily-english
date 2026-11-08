@@ -3,6 +3,7 @@ import type { Question } from '@/lib/types';
 import data from './questions.json';
 import extraData from './questions.extra.json';
 import { contentViolations } from './contentPolicy';
+import { choiceNoteProblems } from './choiceNotes';
 
 const main = data as Question[];
 // 1년 분량으로 늘린 추가 문제 은행(서버 모드 전용). 저장소에는 없고, 없으면 빈 목록이다.
@@ -49,6 +50,11 @@ describe('문제 은행', () => {
 
   it('추가 문제 은행은 모든 문항에 해석이 있다', () => {
     expect(extra.filter((q) => !q.translation).map((q) => q.id)).toEqual([]);
+  });
+
+  it('보기 설명이 있는 문항은 보기마다 하나씩, 짧은 한국어로 겹치지 않게 적혀 있다 (src/data/choiceNotes.ts)', () => {
+    const problems = questions.flatMap((q) => choiceNoteProblems(q).map((p) => `#${q.id} ${p}`));
+    expect(problems).toEqual([]);
   });
 
   it('id가 겹치지 않는다 (두 문제 은행 합쳐서)', () => {

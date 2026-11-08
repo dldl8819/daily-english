@@ -58,6 +58,10 @@ for (const [name, categories] of PROFILES) {
   console.log(`  ${name.padEnd(10)} ${String(pool).padStart(6)}문항 → ${String(days).padStart(4)}일 ${days >= YEAR ? '✓' : ''}`);
 }
 
+// 보기 설명(choiceNotes): 답한 뒤 보기마다 뜻·형태를 보여 준다. 2026-11-08부터 기본 문제 은행부터 채운다.
+const noted = (list) => list.filter((q) => Array.isArray(q.choiceNotes)).length;
+console.log(`\n보기 설명이 있는 문항: 기본 ${noted(main)}/${main.length}, 추가 ${noted(extra)}/${extra.length} (전체 ${pct(noted(all), all.length)})`);
+
 if (extra.length > 0) {
   console.log('\n추가 문제 은행 품질 신호');
   const lower = (s) => s.toLowerCase();

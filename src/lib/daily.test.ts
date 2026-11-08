@@ -135,14 +135,14 @@ describe('recordPick', () => {
   const started = startAttempt(EMPTY_PROGRESS, questions, '2026-10-21');
 
   it('현재 문제의 답을 순서대로 기록한다', () => {
-    const p = recordPick(recordPick(started, 0, 2), 1, 0);
+    const p = recordPick(recordPick(started, 0, 2, false), 1, 0, false);
     expect(p.attempt?.picks).toEqual([2, 0]);
   });
 
   it('이미 답한 문제나 건너뛴 문제는 기록하지 않는다', () => {
-    const p = recordPick(started, 0, 2);
-    expect(recordPick(p, 0, 1)).toBe(p);
-    expect(recordPick(p, 3, 1)).toBe(p);
+    const p = recordPick(started, 0, 2, false);
+    expect(recordPick(p, 0, 1, false)).toBe(p);
+    expect(recordPick(p, 3, 1, false)).toBe(p);
   });
 
   it('맞힌 수를 센다', () => {
@@ -150,9 +150,36 @@ describe('recordPick', () => {
     const picks = list.map((q, i) => (i < 3 ? q.answer : (q.answer + 1) % 4));
     expect(countCorrect(list, picks)).toBe(3);
   });
+
+  it('맞히면 답할 때 바로 10 XP를 주고, 틀리면 주지 않는다', () => {
+    const right = recordPick(started, 0, 2, true);
+    expect(right.xp).toBe(started.xp + 10);
+    expect(right.attempt?.xpGranted).toBe(10);
+    const wrong = recordPick(right, 1, 0, false);
+    expect(wrong.xp).toBe(right.xp);
+    expect(wrong.attempt?.xpGranted).toBe(10);
+  });
 });
 
 describe('completeDay', () => {
+  it('답할 때 받은 XP를 빼고 나머지(완료 보너스)만 더해서, 하루 합계는 맞힌 수 × 10 + 5다', () => {
+    const key = '2026-10-21';
+    let p = startAttempt(EMPTY_PROGRESS, questions, key);
+    // 4문제 맞히고 1문제 틀린다.
+    [true, true, false, true, true].forEach((correct, i) => (p = recordPick(p, i, 0, correct)));
+    expect(p.xp).toBe(40);
+    const done = completeDay(p, key, 4, 5);
+    expect(done.xp).toBe(xpForResult(4));
+    expect(done.today?.xpGained).toBe(45);
+  });
+
+  it('답할 때 XP를 받기 전의 기록(xpGranted 없음)은 마칠 때 합계를 다 준다', () => {
+    const key = '2026-10-21';
+    const started = startAttempt(EMPTY_PROGRESS, questions, key);
+    const old = { ...started, attempt: { ...started.attempt!, picks: [0, 0, 0, 0, 0] } };
+    expect(completeDay(old, key, 4, 5).xp).toBe(45);
+  });
+
   it('XP와 streak를 올린다', () => {
     const p = completeDay(EMPTY_PROGRESS, '2026-10-21', 4, 5);
     expect(p.xp).toBe(xpForResult(4));
@@ -206,11 +233,20 @@ describe('bonus', () => {
     expect(two.seen).toEqual(expect.arrayContaining(ids));
   });
 
+  it('맞힐 때마다 10 XP를 바로 주고, 마칠 때는 더하지 않는다', () => {
+    let p = grantBonus(done, questions, day, 'share');
+    [true, false, true, true, false].forEach((correct, i) => (p = recordBonusPick(p, day, 'share', i, 0, correct)));
+    expect(p.xp).toBe(done.xp + 30);
+    const finished = completeBonus(p, day, 'share', 3);
+    expect(finished.xp).toBe(done.xp + 30);
+    expect(todaysBonus(finished, day)[0].result?.xpGained).toBe(30);
+  });
+
   it('답을 순서대로 기록하고, 마치면 정답당 10 XP만 더한다', () => {
     let p = grantBonus(done, questions, day, 'ad');
-    p = recordBonusPick(p, day, 'ad', 0, 1);
-    expect(recordBonusPick(p, day, 'ad', 0, 2)).toBe(p);
-    expect(recordBonusPick(p, day, 'ad', 3, 2)).toBe(p);
+    p = recordBonusPick(p, day, 'ad', 0, 1, false);
+    expect(recordBonusPick(p, day, 'ad', 0, 2, false)).toBe(p);
+    expect(recordBonusPick(p, day, 'ad', 3, 2, false)).toBe(p);
     expect(todaysBonus(p, day)[0].picks).toEqual([1]);
 
     const finished = completeBonus(p, day, 'ad', 3);

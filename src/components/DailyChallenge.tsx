@@ -23,7 +23,7 @@ import {
   startAttempt,
   visibleStreak,
 } from '@/lib/daily';
-import { levelFromXp, levelProgress } from '@/lib/level';
+import { levelFromXp, levelProgress, xpForPick } from '@/lib/level';
 import { WRONG_BACKFILL_KEY, loadProgress, loadUserKey, loadValue, saveProgress, saveValue, todayKey } from '@/lib/storage';
 import { setNickname } from '@/lib/profile';
 import { isSaved, toggleSaved } from '@/lib/saved';
@@ -31,6 +31,7 @@ import { CATEGORY_LABEL, DIFFICULTY_LABEL, dailyGoalOf } from '@/lib/study';
 import { backfillWrong, noteAnswer, removeWrong, wrongEntries } from '@/lib/wrong';
 import BannerAd from './BannerAd';
 import BonusSection from './BonusSection';
+import ChoiceText from './ChoiceText';
 import SavedView from './SavedView';
 import SaveButton from './SaveButton';
 import Prompt from './Prompt';
@@ -172,7 +173,7 @@ function Quiz({ questions, picks, onPick, onFinish, isSaved, onToggleSave, label
               aria-disabled={answered || !!busy}
               onClick={() => !answered && !busy && pick(i)}
             >
-              <span lang="en">{text}</span>
+              <ChoiceText text={text} note={answered ? question.choiceNotes?.[i] : undefined} />
               {mark && (
                 <span className="mark">
                   <span aria-hidden="true">{mark === '정답' ? '✓ ' : '✗ '}</span>
@@ -203,7 +204,9 @@ function Quiz({ questions, picks, onPick, onFinish, isSaved, onToggleSave, label
           >
             <p className="verdict">
               {isCorrect ? (
-                '정답이에요.'
+                <>
+                  정답이에요. <span className="xp-gain">+{xpForPick(true)} XP</span>
+                </>
               ) : (
                 <>
                   오답이에요. 정답은 <span lang="en">{question.choices[question.answer]}</span>예요.
@@ -457,7 +460,7 @@ export default function DailyChallenge() {
       const { progress: p, cache: c } = latest.current;
       if (!p || !c[id]) return;
       const nextCache = withGraded(c, c[id], graded);
-      const recorded = kind === 'daily' ? recordPick(p, index, choice) : recordBonusPick(p, today, kind, index, choice);
+      const recorded = kind === 'daily' ? recordPick(p, index, choice, graded.correct) : recordBonusPick(p, today, kind, index, choice, graded.correct);
       commit(recorded === p ? p : noteAnswer(recorded, nextCache[id], choice, today), nextCache);
     }, '채점하지 못했어요. 보기를 다시 골라 주세요.');
   }
@@ -579,7 +582,7 @@ export default function DailyChallenge() {
           onPick={(index, choice) =>
             SERVER_MODE
               ? answerRemote(activeBonus.source, index, choice)
-              : answer(recordBonusPick(current, today, activeBonus.source, index, choice), activeBonusQuestions[index], choice)
+              : answer(recordBonusPick(current, today, activeBonus.source, index, choice, activeBonusQuestions[index].answer === choice), activeBonusQuestions[index], choice)
           }
           onFinish={() => {
             if (SERVER_MODE) {
@@ -658,7 +661,7 @@ export default function DailyChallenge() {
           questions={questions}
           picks={attempt.picks}
           onPick={(index, choice) =>
-            SERVER_MODE ? answerRemote('daily', index, choice) : answer(recordPick(current, index, choice), questions[index], choice)
+            SERVER_MODE ? answerRemote('daily', index, choice) : answer(recordPick(current, index, choice, questions[index].answer === choice), questions[index], choice)
           }
           onFinish={finish}
           isSaved={(questionId) => isSaved(current, questionId)}

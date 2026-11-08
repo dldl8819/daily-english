@@ -18,8 +18,10 @@ import { createMemoryStore } from '../../server/src/store-memory';
  */
 
 const API = 'http://api.test';
-// 문장 해석도 정답을 알려 주므로, 답하기 전에 오지 않는지 보려고 모든 문항에 해석을 붙인다.
-const BANK = createBank((sample as Question[]).map((q) => ({ ...q, translation: `해석 #${q.id}` })));
+// 문장 해석·보기 설명도 정답을 알려 주므로, 답하기 전에 오지 않는지 보려고 모든 문항에 붙인다.
+const BANK = createBank(
+  (sample as Question[]).map((q) => ({ ...q, translation: `해석 #${q.id}`, choiceNotes: q.choices.map((_, i) => `설명 ${q.id}-${i}`) })),
+);
 
 // 앱인토스 SDK: 토스 앱 안처럼 동작시킨다(식별키, 일회용 인증 코드, 저장소).
 const sdk = vi.hoisted(() => {
@@ -136,7 +138,9 @@ describe('서버 모드', () => {
     expect(ids.map((id) => cache()[id].answer)).toEqual(ids.map(() => UNGRADED));
     expect(ids.map((id) => cache()[id].explanation)).toEqual(ids.map(() => ''));
     expect(ids.map((id) => cache()[id].translation)).toEqual(ids.map(() => undefined));
+    expect(ids.map((id) => cache()[id].choiceNotes)).toEqual(ids.map(() => undefined));
     expect(container.textContent).not.toContain('문장 해석');
+    expect(container.querySelector('.choice-note')).toBeNull();
 
     // 답하면 영어 문장 바로 아래에 문장 해석이 나온다. 포커스가 가는 해설은 해석을 설명으로 함께 읽힌다.
     await user.click(choiceButtons()[answerOf(ids[0])]);
@@ -147,6 +151,10 @@ describe('서버 모드', () => {
     expect(container.querySelector('.explain')!.getAttribute('aria-describedby')).toBe(translationId);
     expect(cache()[ids[0]].translation).toBe(`해석 #${ids[0]}`);
     expect(cache()[ids[1]].translation).toBeUndefined();
+    // 답하면 보기마다 설명(뜻·형태)이 붙고, 맞힌 문제의 XP가 바로 쌓인다.
+    expect([...container.querySelectorAll('.choice-note')].map((n) => n.textContent)).toEqual([0, 1, 2, 3].map((i) => `설명 ${ids[0]}-${i}`));
+    expect(container.querySelector('.verdict')!.textContent).toContain('+10 XP');
+    expect(saved().xp).toBe(10);
     await user.click(screen.getByRole('button', { name: '다음 문제' }));
     for (let i = 1; i < 5; i++) await answerAndNext(user, ids[i], answerOf(ids[i]), i === 4);
     await screen.findByRole('heading', { name: '오늘 학습을 마쳤어요' });

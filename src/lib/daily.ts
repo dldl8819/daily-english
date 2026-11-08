@@ -1,6 +1,6 @@
 import type { AnswerRecord, Attempt, BonusSet, BonusSource, Category, Difficulty, Progress, Question, StudyProfile } from './types';
 import { reviewPriority, reviewRecords } from './history';
-import { xpForResult } from './level';
+import { xpForPick, xpForResult } from './level';
 import { dailyGoalOf, profileCategories, studyLevel } from './study';
 
 export const QUESTIONS_PER_DAY = 5;
@@ -168,13 +168,18 @@ export function attemptQuestions(attempt: Attempt, questions: Question[]): Quest
   return list.every((q): q is Question => q !== undefined) && list.length > 0 ? list : null;
 }
 
-/** 현재 문제의 답을 기록한다. 이미 답한 문제는 바꾸지 않는다. */
-export function recordPick(progress: Progress, index: number, choice: number): Progress {
+/** 현재 문제의 답을 기록하고, 맞혔으면 XP를 바로 준다(xpForPick). 이미 답한 문제는 바꾸지 않는다. */
+export function recordPick(progress: Progress, index: number, choice: number, correct: boolean): Progress {
   const attempt = progress.attempt;
   if (!attempt || index !== attempt.picks.length || index >= attempt.ids.length) {
     return progress;
   }
-  return { ...progress, attempt: { ...attempt, picks: [...attempt.picks, choice] } };
+  const gained = xpForPick(correct);
+  return {
+    ...progress,
+    xp: progress.xp + gained,
+    attempt: { ...attempt, picks: [...attempt.picks, choice], xpGranted: (attempt.xpGranted ?? 0) + gained },
+  };
 }
 
 export function countCorrect(questions: Question[], picks: number[]): number {
@@ -186,10 +191,12 @@ export function completeDay(progress: Progress, key: string, correct: number, to
     return progress;
   }
   const consecutive = progress.lastDate !== null && dayNumber(key) - dayNumber(progress.lastDate) === 1;
+  // 결과의 XP는 세트 합계다. 답할 때 이미 준 XP를 빼고 나머지(완료 보너스)만 더한다.
   const xpGained = xpForResult(correct);
+  const granted = progress.attempt?.date === key ? (progress.attempt.xpGranted ?? 0) : 0;
   return {
     ...progress,
-    xp: progress.xp + xpGained,
+    xp: progress.xp + Math.max(0, xpGained - granted),
     streak: consecutive ? progress.streak + 1 : 1,
     lastDate: key,
     today: { date: key, correct, total, xpGained },
@@ -253,20 +260,23 @@ function updateBonus(progress: Progress, key: string, source: BonusSource, chang
   return { ...progress, bonus };
 }
 
-/** 보너스 문제의 현재 문제 답을 기록한다. 이미 답한 문제나 끝난 세트는 바꾸지 않는다. */
+/** 보너스 문제의 현재 문제 답을 기록하고, 맞혔으면 XP를 바로 준다. 이미 답한 문제나 끝난 세트는 바꾸지 않는다. */
 export function recordBonusPick(
   progress: Progress,
   key: string,
   source: BonusSource,
   index: number,
   choice: number,
+  correct: boolean,
 ): Progress {
   const set = progress.bonus.find((b) => b.date === key && b.source === source);
   if (!set || set.result || index !== set.picks.length || index >= set.ids.length) return progress;
-  return updateBonus(progress, key, source, (b) => ({ ...b, picks: [...b.picks, choice] }));
+  const gained = correct ? BONUS_XP_PER_CORRECT : 0;
+  const next = updateBonus(progress, key, source, (b) => ({ ...b, picks: [...b.picks, choice], xpGranted: (b.xpGranted ?? 0) + gained }));
+  return { ...next, xp: next.xp + gained };
 }
 
-/** 보너스 5문제를 마친다. 정답당 XP만 받고 완료 보너스는 없다. 연속 학습일에는 영향이 없다. */
+/** 보너스 5문제를 마친다. 정답당 XP만 받고 완료 보너스는 없다(답할 때 이미 받았다). 연속 학습일에는 영향이 없다. */
 export function completeBonus(progress: Progress, key: string, source: BonusSource, correct: number): Progress {
   const set = progress.bonus.find((b) => b.date === key && b.source === source);
   if (!set || set.result) return progress;
@@ -275,7 +285,7 @@ export function completeBonus(progress: Progress, key: string, source: BonusSour
     ...b,
     result: { correct, total: b.ids.length, xpGained },
   }));
-  return { ...done, xp: done.xp + xpGained };
+  return { ...done, xp: done.xp + Math.max(0, xpGained - (set.xpGranted ?? 0)) };
 }
 
 /** 고정된 보너스 문제 ID를 문제로 바꾼다. 문제 은행에서 빠진 ID가 있으면 null. */

@@ -94,7 +94,7 @@ async function route(req: Request, deps: AppDeps, nowMs: number): Promise<unknow
 
   if (req.method === 'GET' && path === `${PREFIX}/me/progress`) {
     const date = url.searchParams.get('date');
-    return progress(deps.store, userId, isDateKey(date) ? date : null);
+    return progress(deps.store, deps.bank, userId, isDateKey(date) ? date : null);
   }
   if (req.method === 'POST' && path === `${PREFIX}/me/progress/import`) {
     await importLocal(deps.store, deps.bank, userId, await readJson(req), todayKst);

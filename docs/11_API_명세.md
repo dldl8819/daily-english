@@ -27,7 +27,8 @@
 | `xpToReach` | `(level: number) => number` | 레벨 도달 누적 XP |
 | `levelFromXp` | `(xp: number) => number` | 누적 XP의 레벨 |
 | `levelProgress` | `(xp: number) => { level, current, needed }` | 레벨 내 진행도 |
-| `xpForResult` | `(correct: number) => number` | 하루 획득 XP |
+| `xpForResult` | `(correct: number) => number` | 하루 획득 XP 합계 |
+| `xpForPick` | `(correct: boolean) => number` | 한 문제에 답할 때 바로 주는 XP (맞히면 10) |
 
 ### `src/lib/storage.ts`
 
@@ -89,7 +90,7 @@
 { "xp": 145, "level": 3, "streak": 3, "lastDate": "2026-10-23", "todayCompleted": true }
 ```
 
-XP·연속 학습일은 가져온 기기 기록(2.7)에서 시작해 완료한 세트를 날짜순으로 더해 계산한다.
+XP·연속 학습일은 가져온 기기 기록(2.7)에서 시작해 세트를 날짜순으로 더해 계산한다. 마친 세트는 저장한 합계를, 마치지 않은 세트는 지금까지 맞힌 문제마다 10 XP를 더한다(2026-11-08부터).
 
 ### 2.3 `GET /api/v1/daily?date=&reason=&careerFocus=&selfLevel=&dailyGoal=`
 
@@ -129,7 +130,7 @@ XP·연속 학습일은 가져온 기기 기록(2.7)에서 시작해 완료한 �
 { "result": { "correct": 4, "total": 5, "xpGained": 45 }, "me": { "xp": 190, "level": 3, "streak": 4, "lastDate": "2026-10-23" } }
 ```
 
-XP는 서버가 저장된 답으로 계산한다(오늘의 문제: 정답×10+5, 보너스: 정답×10). 이미 마쳤으면 같은 결과를 돌려준다(두 번 더하지 않는다).
+XP는 서버가 저장된 답으로 계산한다(오늘의 문제: 정답×10+5, 보너스: 정답×10). 답할 때 이미 `me.xp`에 들어간 정답 XP는 다시 더하지 않는다. 이미 마쳤으면 같은 결과를 돌려준다(두 번 더하지 않는다).
 
 ### 2.6 `POST /api/v1/daily/{date}/bonus`
 

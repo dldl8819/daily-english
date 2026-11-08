@@ -10,7 +10,7 @@ import type {
   TodayResponse,
 } from '../../src/lib/apiTypes';
 import { BONUS_XP_PER_CORRECT, EMPTY_PROGRESS, completeDay, grantBonus, setStudyProfile, startAttempt } from '../../src/lib/daily';
-import { levelFromXp, xpForResult } from '../../src/lib/level';
+import { levelFromXp, xpForPick, xpForResult } from '../../src/lib/level';
 import { CAREER_FOCUSES, DAILY_GOALS, REASONS, SELF_LEVELS } from '../../src/lib/study';
 import type { AnswerRecord, BonusSource, Progress, StudyProfile } from '../../src/lib/types';
 import { type Bank, gradedOf, publicQuestion } from './bank';
@@ -70,15 +70,20 @@ function resultOf(row: SetRow): SetResult | null {
 }
 
 /**
- * 지금 XP·레벨·연속 학습일. 가져온 기록에서 시작해 완료한 세트를 날짜순으로 더한다.
+ * 지금 XP·레벨·연속 학습일. 가져온 기록에서 시작해 세트를 날짜순으로 더한다.
+ * - 마친 세트는 저장한 xp_gained(합계)를 더한다.
+ * - 마치지 않은 세트는 지금까지 맞힌 문제의 XP(xpForPick)를 더한다. 클라이언트가 답할 때마다 XP를 주는 것과 같다(2026-11-08).
  * 연속 학습일은 오늘의 문제를 마친 날로만 센다(클라이언트 completeDay와 같은 규칙).
  */
-export function replay(user: UserRow, rows: SetRow[]): Me {
+export function replay(user: UserRow, rows: SetRow[], bank: Bank): Me {
   let xp = user.imported_xp;
   let streak = user.imported_streak;
   let lastDate = user.imported_last_date;
   for (const row of [...rows].sort(byDate)) {
-    if (row.completed_at === null) continue;
+    if (row.completed_at === null) {
+      xp += row.picks.reduce((sum, pick, i) => sum + xpForPick(bank.byId.get(row.question_ids[i])?.answer === pick), 0);
+      continue;
+    }
     if (row.kind === 'daily' && (lastDate === null || row.play_date > lastDate)) {
       const next = completeDay({ ...EMPTY_PROGRESS, streak, lastDate }, row.play_date, row.correct ?? 0, row.total ?? 0);
       streak = next.streak;
@@ -99,7 +104,7 @@ function progressOf(user: UserRow, rows: SetRow[], bank: Bank, profile: StudyPro
       if (q) history[q.id] = { date: row.play_date, correct: pick === q.answer };
     });
   }
-  const me = replay(user, ordered);
+  const me = replay(user, ordered, bank);
   const daily = ordered.find((r) => r.play_date === date && r.kind === 'daily');
   return {
     ...EMPTY_PROGRESS,
@@ -184,7 +189,7 @@ export async function today(store: Store, bank: Bank, userId: string, date: stri
   const latest = await store.sets(userId);
   return {
     date,
-    me: replay(user, latest),
+    me: replay(user, latest, bank),
     daily: setView(daily, bank),
     bonus: latest.filter((r) => r.play_date === date && r.kind !== 'daily').sort(byDate).map((r) => setView(r, bank)),
   };
@@ -262,13 +267,13 @@ export async function complete(store: Store, bank: Bank, userId: string, date: s
       (await store.completeSet(row.id, { correct, total: row.question_ids.length, xp_gained })) ??
       (await reread(store, userId, date, kind));
   }
-  return { result: resultOf(row)!, me: replay(user, await store.sets(userId)) };
+  return { result: resultOf(row)!, me: replay(user, await store.sets(userId), bank) };
 }
 
-export async function progress(store: Store, userId: string, date: string | null): Promise<ProgressResponse> {
+export async function progress(store: Store, bank: Bank, userId: string, date: string | null): Promise<ProgressResponse> {
   const user = await userOf(store, userId);
   const rows = await store.sets(userId);
-  return { ...replay(user, rows), todayCompleted: rows.some((r) => r.kind === 'daily' && r.play_date === date && r.completed_at !== null) };
+  return { ...replay(user, rows, bank), todayCompleted: rows.some((r) => r.kind === 'daily' && r.play_date === date && r.completed_at !== null) };
 }
 
 /**

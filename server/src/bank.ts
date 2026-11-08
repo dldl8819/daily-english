@@ -13,7 +13,12 @@ export function publicQuestion(q: Question): PublicQuestion {
   return { id: q.id, category: q.category, difficulty: q.difficulty, prompt: q.prompt, choices: q.choices };
 }
 
-/** 답한 뒤에 주는 부분. 해석은 있는 문항에만 붙인다. */
+/** 답한 뒤에 주는 부분. 해석·보기 설명은 있는 문항에만 붙인다. 보기 설명도 오답을 지우는 단서라 답하기 전에는 주지 않는다. */
 export function gradedOf(q: Question): Graded {
-  return { answer: q.answer, explanation: q.explanation, ...(q.translation ? { translation: q.translation } : {}) };
+  return {
+    answer: q.answer,
+    explanation: q.explanation,
+    ...(q.translation ? { translation: q.translation } : {}),
+    ...(q.choiceNotes ? { choiceNotes: q.choiceNotes } : {}),
+  };
 }

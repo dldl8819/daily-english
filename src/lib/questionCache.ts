@@ -22,7 +22,8 @@ function isQuestion(value: unknown): value is Question {
     q.choices.every((c) => typeof c === 'string') &&
     typeof q.answer === 'number' &&
     typeof q.explanation === 'string' &&
-    (q.translation === undefined || typeof q.translation === 'string')
+    (q.translation === undefined || typeof q.translation === 'string') &&
+    (q.choiceNotes === undefined || (Array.isArray(q.choiceNotes) && q.choiceNotes.every((n) => typeof n === 'string')))
   );
 }
 
