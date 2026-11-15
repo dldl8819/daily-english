@@ -77,6 +77,7 @@
 | 4.21 | CI (GitHub Actions): 타입·테스트·빌드, 서버 모드 번들 검사, 통합(Supabase + wrangler dev), Dependabot | `.github/`, `scripts/check-bundle.mjs`, `server/scripts/integration.sh` | - | 완료 (2026-10-23, 첫 push 전) |
 | 4.22 | 서버 오류 로그: Workers 로그·Issues, api_error 구조화 로그 (Sentry는 쓰지 않음) | `server/wrangler.jsonc`, `server/src/app.ts` | - | 완료, 운영 배포 뒤 호출 로그 헤더 확인 |
 | 4.23 | 개발 환경 Node 24 (`.nvmrc`, engines) | `package.json` | - | 완료 (2026-10-23) |
+| 4.24 | 서버 CPU 한도(무료 플랜 10ms) 대응: 문제 고르기를 분류·난이도 색인으로 | `src/lib/daily.ts`, `server/src/bank.ts` | - | 진행 (코드·대조·측정 완료, 서버 배포 대기, [21](21_서버_CPU_한도_대응.md)) |
 | 4.12 | 콘솔 광고 그룹 생성, 운영 광고 ID로 빌드 | 배너 `ait.v2.live.63b019ef11964236` (메인_하단배너), `.env.production` | 0.5일 | 완료 (배너), 20261021-6 검수 중 |
 | **5** | **출시 후 (P1~P2)** | | | |
 | 5.1 | 틀린 문제 모아 보기·다시 풀기 (F-08) | `WrongView`, `wrong.ts` | 1일 | 완료, 미배포 |
