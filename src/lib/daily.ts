@@ -30,14 +30,66 @@ export function difficultyMix(level: number, count = QUESTIONS_PER_DAY): Difficu
   return Array.from({ length: count }, (_, i) => unit[i % unit.length]);
 }
 
-/** 날짜와 문제 ID로 정해지는 섞기용 값. 같은 입력이면 항상 같은 순서가 나온다. */
-function rank(id: number, key: string): number {
+/**
+ * 날짜와 문제 ID로 정해지는 섞기용 값. 같은 입력이면 항상 같은 순서가 나온다.
+ * `${key}#${id}`를 FNV-1a로 해시한 값이다. 키 부분(`${key}#`)을 먼저 해시해 두고(rankPrefix) 문제마다 ID만 이어서 해시한다.
+ * FNV-1a는 글자를 앞에서부터 하나씩 더하므로 문자열 전체를 한 번에 해시한 값과 같다.
+ */
+function rankPrefix(key: string): number {
   let h = 2166136261;
-  for (const ch of `${key}#${id}`) {
+  for (const ch of `${key}#`) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  return h;
+}
+
+function rankOf(prefix: number, id: number): number {
+  let h = prefix;
+  for (const ch of String(id)) {
     h ^= ch.charCodeAt(0);
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
+}
+
+/** 분류 → 난이도 → 문제 위치(은행 순서). 문제를 고를 때 은행 전체 대신 필요한 묶음만 훑으려고 만든다. */
+type QuestionIndex = {
+  size: number;
+  buckets: Map<Category, Map<number, number[]>>;
+  counts: Map<Category, number>;
+  difficulties: number[];
+  /** ID → 위치. ID가 겹치는 비정상 은행도 지금과 같게 다루려고 위치를 모두 둔다. */
+  positions: Map<number, number[]>;
+};
+
+const indexes = new WeakMap<readonly Question[], QuestionIndex>();
+
+function questionIndex(questions: readonly Question[]): QuestionIndex {
+  const cached = indexes.get(questions);
+  if (cached && cached.size === questions.length) return cached;
+  const index: QuestionIndex = { size: questions.length, buckets: new Map(), counts: new Map(), difficulties: [], positions: new Map() };
+  const difficulties = new Set<number>();
+  questions.forEach((q, i) => {
+    let byDifficulty = index.buckets.get(q.category);
+    if (!byDifficulty) index.buckets.set(q.category, (byDifficulty = new Map()));
+    let bucket = byDifficulty.get(q.difficulty);
+    if (!bucket) byDifficulty.set(q.difficulty, (bucket = []));
+    bucket.push(i);
+    index.counts.set(q.category, (index.counts.get(q.category) ?? 0) + 1);
+    const at = index.positions.get(q.id);
+    if (at) at.push(i);
+    else index.positions.set(q.id, [i]);
+    difficulties.add(q.difficulty);
+  });
+  index.difficulties = [...difficulties];
+  indexes.set(questions, index);
+  return index;
+}
+
+/** 문제 고르기 색인을 미리 만든다. 서버는 시작할 때 불러 첫 요청에서 만들지 않게 한다. 같은 배열이면 다시 만들지 않는다. */
+export function indexQuestions(questions: readonly Question[]): void {
+  questionIndex(questions);
 }
 
 /**
@@ -46,6 +98,11 @@ function rank(id: number, key: string): number {
  * - 안 본 문제를 먼저 고르고, 다 봤으면 본 문제를 복습으로 낸다. 복습은 틀린 것, 오래전에 답한 것부터(records).
  * - 학습 목적의 분류(categories)에서만 고르고, 분류가 둘이면 번갈아 고른다.
  * - 원하는 난이도가 모자라면 가까운 난이도에서 채운다. 이때도 새 문제가 남아 있으면 복습보다 새 문제를 먼저 낸다.
+ * - exclude에 있는 ID는 고르지 않는다(보너스가 오늘 낸 문제를 빼는 데 쓴다).
+ *
+ * 서버는 요청당 CPU 시간이 짧다(Workers 무료 플랜 10ms, docs/21). 그래서 은행 전체를 훑지 않고
+ * 색인(questionIndex)에서 자리에 맞는 분류·난이도 묶음만 훑는다. 같은 섞기 값이면 은행 순서가 앞선 문제를 고른다.
+ * 새 문제가 모두 떨어진 뒤의 복습만 예전처럼 은행 전체를 훑는다.
  */
 export function pickDaily(
   questions: Question[],
@@ -56,54 +113,92 @@ export function pickDaily(
   categories: Category[] = ['dev', 'daily'],
   count: number = QUESTIONS_PER_DAY,
   records: Map<number, AnswerRecord> = new Map(),
+  exclude: ReadonlySet<number> = new Set(),
 ): Question[] {
+  const index = questionIndex(questions);
   const seenSet = new Set(seen);
-  const OLDEST: AnswerRecord = { date: '', correct: true };
+  const used = new Set<number>();
+  const prefix = rankPrefix(key + salt);
+  const free = (q: Question) => !used.has(q.id) && !exclude.has(q.id);
+
   // 목적에 맞는 문제가 하나도 없을 때(문제 은행이 비정상)만 전체에서 고른다.
-  const inGoal = questions.filter((q) => categories.includes(q.category));
-  const pool = inGoal.length > 0 ? inGoal : questions;
-  const rankOf = new Map(pool.map((q) => [q.id, rank(q.id, key + salt)]));
-  // 안 본 문제가 먼저, 본 문제는 복습 순서대로, 그 안에서는 날짜로 섞은 순서대로
+  const goal = [...new Set(categories)];
+  const excludedIn = (inPool: (q: Question) => boolean) => {
+    let n = 0;
+    for (const id of exclude) for (const i of index.positions.get(id) ?? []) if (inPool(questions[i])) n++;
+    return n;
+  };
+  const inGoal = (q: Question) => goal.includes(q.category);
+  const goalSize = goal.reduce((sum, c) => sum + (index.counts.get(c) ?? 0), 0) - excludedIn(inGoal);
+  const inPool = goalSize > 0 ? inGoal : () => true;
+  const poolCategories = goalSize > 0 ? goal : [...index.buckets.keys()];
+  const poolSize = goalSize > 0 ? goalSize : questions.length - excludedIn(inPool);
+  const bucketOf = (category: Category, difficulty: number) => index.buckets.get(category)?.get(difficulty) ?? [];
+
+  /** 묶음들에서 안 본 문제 중 섞기 값이 가장 작은 문제의 위치. 같으면 은행 순서가 앞선 문제. 없으면 -1 */
+  const firstNew = (buckets: number[][]) => {
+    let best = -1;
+    let bestRank = 0;
+    for (const bucket of buckets) {
+      for (const i of bucket) {
+        const q = questions[i];
+        if (seenSet.has(q.id) || !free(q)) continue;
+        const r = rankOf(prefix, q.id);
+        if (best < 0 || r < bestRank || (r === bestRank && i < best)) {
+          best = i;
+          bestRank = r;
+        }
+      }
+    }
+    return best;
+  };
+
+  // 새 문제가 모두 떨어졌을 때의 복습: 가까운 난이도, 같은 분류, 틀린 것·오래전에 답한 것, 섞은 순서 순. 은행 순서대로 훑는다.
+  const OLDEST: AnswerRecord = { date: '', correct: true };
   const comesFirst = (a: Question, b: Question) => {
     const seenA = seenSet.has(a.id);
     const seenB = seenSet.has(b.id);
     if (seenA !== seenB) return Number(seenA) - Number(seenB);
     const review = seenA ? reviewPriority(records.get(a.id) ?? OLDEST, records.get(b.id) ?? OLDEST) : 0;
-    return review || rankOf.get(a.id)! - rankOf.get(b.id)!;
+    return review || rankOf(prefix, a.id) - rankOf(prefix, b.id);
   };
-  const unseen = pool.filter((q) => !seenSet.has(q.id));
-  const picked: Question[] = [];
-  const used = new Set<number>();
-  const order: Category[] = dayNumber(key) % 2 === 0 ? categories : [...categories].reverse();
-  // 서버는 요청당 CPU 시간이 짧다(Workers 무료 플랜 10ms). 문제 은행 전체를 정렬하지 않고 자리마다 맨 앞 문제만 찾는다.
-  const firstOf = (list: Question[], fits: (q: Question) => boolean, compare = comesFirst) => {
-    let first: Question | undefined;
-    for (const q of list) {
-      if (!used.has(q.id) && fits(q) && (first === undefined || compare(q, first) < 0)) first = q;
-    }
-    return first;
-  };
-  const anyQuestion = () => true;
-
-  difficultyMix(level, count).forEach((difficulty, slot) => {
-    if (picked.length >= Math.min(count, pool.length)) return;
-    const category = order[slot % order.length];
+  const firstReview = (difficulty: number, category: Category) => {
     const byCloseness = (q: Question) => Math.abs(q.difficulty - difficulty);
-    // 가까운 난이도, 같은 분류, 복습 순서(comesFirst) 순으로 가장 알맞은 문제
     const nearest = (a: Question, b: Question) =>
       byCloseness(a) - byCloseness(b) ||
       Number(a.category !== category) - Number(b.category !== category) ||
       comesFirst(a, b);
-    const best =
-      firstOf(unseen, (q) => q.difficulty === difficulty && q.category === category) ??
-      firstOf(unseen, (q) => q.difficulty === difficulty) ??
-      // 원하는 난이도의 새 문제가 없으면 가까운 난이도의 새 문제를 먼저 낸다(하루 20문제씩 1년 동안 새 문제를 내기 위해서다).
-      // 새 문제가 모두 떨어졌을 때만 복습한다.
-      firstOf(unseen, anyQuestion, nearest) ??
-      firstOf(pool, anyQuestion, nearest);
-    if (best) {
-      picked.push(best);
-      used.add(best.id);
+    let best = -1;
+    questions.forEach((q, i) => {
+      if (free(q) && inPool(q) && (best < 0 || nearest(q, questions[best]) < 0)) best = i;
+    });
+    return best;
+  };
+
+  const picked: Question[] = [];
+  const order: Category[] = dayNumber(key) % 2 === 0 ? categories : [...categories].reverse();
+  difficultyMix(level, count).forEach((difficulty, slot) => {
+    if (picked.length >= Math.min(count, poolSize)) return;
+    const category = order[slot % order.length];
+    // 1. 같은 난이도·같은 분류의 새 문제 2. 같은 난이도의 새 문제
+    let best = firstNew([bucketOf(category, difficulty)]);
+    if (best < 0) best = firstNew(poolCategories.map((c) => bucketOf(c, difficulty)));
+    // 3. 원하는 난이도의 새 문제가 없으면 가까운 난이도의 새 문제를 먼저 낸다(하루 20문제씩 1년 동안 새 문제를 내기 위해서다).
+    //    난이도 거리가 같으면 같은 분류를 먼저 본다.
+    if (best < 0) {
+      const gaps = [...new Set(index.difficulties.map((d) => Math.abs(d - difficulty)))].sort((a, b) => a - b);
+      for (const gap of gaps) {
+        const near = index.difficulties.filter((d) => Math.abs(d - difficulty) === gap);
+        best = firstNew(near.map((d) => bucketOf(category, d)));
+        if (best < 0) best = firstNew(poolCategories.filter((c) => c !== category).flatMap((c) => near.map((d) => bucketOf(c, d))));
+        if (best >= 0) break;
+      }
+    }
+    // 4. 새 문제가 모두 떨어졌을 때만 복습한다.
+    if (best < 0) best = firstReview(difficulty, category);
+    if (best >= 0) {
+      picked.push(questions[best]);
+      used.add(questions[best].id);
     }
   });
 
@@ -232,9 +327,9 @@ export function grantBonus(progress: Progress, questions: Question[], key: strin
     ...(progress.attempt?.date === key ? progress.attempt.ids : []),
     ...mine.flatMap((b) => b.ids),
   ]);
-  const pool = questions.filter((q) => !used.has(q.id));
+  // 은행을 걸러 새 배열을 만들지 않고 뺄 ID를 넘긴다. 같은 배열이어야 색인을 다시 쓴다.
   const ids = pickDaily(
-    pool,
+    questions,
     key,
     studyLevel(progress),
     progress.seen,
@@ -242,6 +337,7 @@ export function grantBonus(progress: Progress, questions: Question[], key: strin
     profileCategories(progress.profile),
     QUESTIONS_PER_DAY,
     reviewRecords(progress),
+    used,
   ).map((q) => q.id);
   if (ids.length === 0) return progress;
   const review = ids.filter((id) => progress.seen.includes(id));
