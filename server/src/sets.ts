@@ -10,6 +10,7 @@ import type {
   TodayResponse,
 } from '../../src/lib/apiTypes';
 import { BONUS_XP_PER_CORRECT, EMPTY_PROGRESS, completeDay, grantBonus, setStudyProfile, startAttempt } from '../../src/lib/daily';
+import { compareDateKeys } from '../../src/lib/history';
 import { levelFromXp, xpForPick, xpForResult } from '../../src/lib/level';
 import { CAREER_FOCUSES, DAILY_GOALS, REASONS, SELF_LEVELS } from '../../src/lib/study';
 import type { AnswerRecord, BonusSource, Progress, StudyProfile } from '../../src/lib/types';
@@ -61,8 +62,9 @@ function parseProfileKey(key: string | null): StudyProfile | null {
   return parseProfile({ reason, careerFocus: careerFocus === '-' ? null : careerFocus, selfLevel, dailyGoal });
 }
 
+/** 날짜순, 같은 날은 만든 순. localeCompare 대신 compareDateKeys를 쓴다(첫 호출 비용, docs/21 2.9). */
 function byDate(a: SetRow, b: SetRow): number {
-  return a.play_date.localeCompare(b.play_date) || a.id - b.id;
+  return compareDateKeys(a.play_date, b.play_date) || a.id - b.id;
 }
 
 function resultOf(row: SetRow): SetResult | null {
@@ -162,8 +164,8 @@ async function reread(store: Store, userId: string, date: string, kind: SetKind)
  * 아직 하나도 풀지 않았는데 맞춤 설정이 바뀌었으면 다시 고른다(MAX_REISSUES번까지).
  */
 export async function today(store: Store, bank: Bank, userId: string, date: string, profile: StudyProfile): Promise<TodayResponse> {
-  const user = await userOf(store, userId);
-  const rows = await store.sets(userId);
+  // 사용자와 세트를 동시에 읽는다. DB를 차례로 부르면 기다리는 시간이 그만큼 쌓인다(docs/21 5.1).
+  const [user, rows] = await Promise.all([userOf(store, userId), store.sets(userId)]);
   const key = profileKey(profile);
   let daily = findSet(rows, date, 'daily');
 
@@ -186,7 +188,9 @@ export async function today(store: Store, bank: Bank, userId: string, date: stri
     }
   }
 
-  const latest = await store.sets(userId);
+  // 세트 목록을 다시 읽지 않고, 앞서 읽은 목록에 새로 만들었거나 다시 고른 세트를 바꿔 넣는다.
+  const set = daily;
+  const latest = [...rows.filter((r) => r.id !== set.id), set];
   return {
     date,
     me: replay(user, latest, bank),
@@ -197,8 +201,7 @@ export async function today(store: Store, bank: Bank, userId: string, date: stri
 
 /** 보너스 5문제를 연다. 오늘의 문제를 마친 뒤에만, 방법마다 하루 한 번. 이미 열었으면 그 세트를 돌려준다. */
 export async function openBonus(store: Store, bank: Bank, userId: string, date: string, source: BonusSource): Promise<SetView> {
-  const user = await userOf(store, userId);
-  const rows = await store.sets(userId);
+  const [user, rows] = await Promise.all([userOf(store, userId), store.sets(userId)]);
   const existing = findSet(rows, date, source);
   if (existing) return setView(existing, bank);
   const daily = findSet(rows, date, 'daily');
@@ -256,8 +259,8 @@ export async function answer(
 /** 세트를 마친다. XP는 저장된 답으로 계산한다. 이미 마쳤으면 그 결과를 돌려준다. */
 export async function complete(store: Store, bank: Bank, userId: string, date: string, body: { set?: unknown }): Promise<CompleteResponse> {
   const kind = parseKind(body.set);
-  const user = await userOf(store, userId);
-  let row = findSet(await store.sets(userId), date, kind);
+  const [user, rows] = await Promise.all([userOf(store, userId), store.sets(userId)]);
+  let row = findSet(rows, date, kind);
   if (!row) throw new ApiFailure(404, 'SET_NOT_FOUND', '문제를 찾지 못했어요.');
   if (row.completed_at === null) {
     if (row.picks.length < row.question_ids.length) throw new ApiFailure(422, 'UNANSWERED', '답하지 않은 문제가 있어요.');
@@ -267,12 +270,13 @@ export async function complete(store: Store, bank: Bank, userId: string, date: s
       (await store.completeSet(row.id, { correct, total: row.question_ids.length, xp_gained })) ??
       (await reread(store, userId, date, kind));
   }
-  return { result: resultOf(row)!, me: replay(user, await store.sets(userId), bank) };
+  // 세트 목록을 다시 읽지 않고, 마친 세트를 앞서 읽은 목록에 바꿔 넣는다.
+  const done = row;
+  return { result: resultOf(done)!, me: replay(user, [...rows.filter((r) => r.id !== done.id), done], bank) };
 }
 
 export async function progress(store: Store, bank: Bank, userId: string, date: string | null): Promise<ProgressResponse> {
-  const user = await userOf(store, userId);
-  const rows = await store.sets(userId);
+  const [user, rows] = await Promise.all([userOf(store, userId), store.sets(userId)]);
   return { ...replay(user, rows, bank), todayCompleted: rows.some((r) => r.kind === 'daily' && r.play_date === date && r.completed_at !== null) };
 }
 

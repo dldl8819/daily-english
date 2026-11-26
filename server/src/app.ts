@@ -63,24 +63,64 @@ function logFailure(req: Request, status: number, code: string, detail: string, 
   else console.warn(entry);
 }
 
+type Wait = { op: string; ms: number };
+
+/**
+ * 요청 안에서 기다린 시간(DB 호출, 토스 API)을 하나씩 잰다.
+ * 운영 Workers의 Date.now()는 코드가 도는 동안 멈춰 있고 I/O가 끝난 뒤에만 흐른다. 그래서 호출 앞뒤 차이가 그 호출의 대기 시간이다.
+ * CPU 시간은 이 방법으로 잴 수 없다. https://developers.cloudflare.com/workers/runtime-apis/performance/
+ */
+function timed<F extends (...args: never[]) => Promise<unknown>>(op: string, fn: F, waits: Wait[]): F {
+  return (async (...args: Parameters<F>) => {
+    const started = Date.now();
+    try {
+      return await fn(...args);
+    } finally {
+      waits.push({ op, ms: Date.now() - started });
+    }
+  }) as F;
+}
+
+function timedStore(store: Store, waits: Wait[]): Store {
+  const entries = Object.entries(store).map(([op, fn]) => [op, timed(op, (fn as Store[keyof Store]).bind(store) as never, waits)]);
+  return Object.fromEntries(entries) as Store;
+}
+
+/**
+ * 요청마다 걸린 시간과 그 안의 대기를 남긴다(docs/21 5.1). 대시보드에서 event = api_timing으로 걸러 본다.
+ * 첫 문제 받기가 7.7초 걸린 일(2026-11-26)의 원인을 찾으려고 넣었다. 사용자 ID, 쿼리, 본문은 남기지 않는다.
+ */
+function logTiming(req: Request, status: number, ms: number, waits: Wait[]) {
+  console.log({ event: 'api_timing', method: req.method, path: new URL(req.url).pathname, status, ms, waits, ray: req.headers.get('cf-ray') });
+}
+
 /** 서버 API (docs/11_API_명세.md 2장). 오류는 { code, message } 형식이다. */
 export function createApp(deps: AppDeps): (req: Request) => Promise<Response> {
   const now = deps.now ?? Date.now;
   return async (req) => {
     const cors = corsHeaders(req.headers.get('origin'), deps.allowedOrigins);
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, ...PREFLIGHT } });
-    try {
-      if (deps.sessionSecret.length < MIN_SECRET_LENGTH) throw new ApiFailure(500, 'MISCONFIGURED', '서버 설정을 확인해 주세요.', 'SESSION_SECRET이 32자보다 짧아요.');
-      return json(200, await route(req, deps, now()), cors);
-    } catch (e) {
-      if (e instanceof ApiFailure) {
-        if (e.status >= 500 || e.status === 429) logFailure(req, e.status, e.code, e.detail ?? e.message);
-        return json(e.status, { code: e.code, message: e.message }, cors);
-      }
-      logFailure(req, 500, 'INTERNAL', e instanceof Error ? `${e.name}: ${e.message}` : String(e), e instanceof Error ? e.stack : undefined);
-      return json(500, { code: 'INTERNAL', message: '잠시 후 다시 시도해 주세요.' }, cors);
-    }
+    const started = Date.now();
+    const waits: Wait[] = [];
+    const measured: AppDeps = { ...deps, store: timedStore(deps.store, waits), exchange: timed('exchange', deps.exchange, waits) };
+    const res = await handle(req, measured, now, cors);
+    logTiming(req, res.status, Date.now() - started, waits);
+    return res;
   };
+}
+
+async function handle(req: Request, deps: AppDeps, now: () => number, cors: Record<string, string>): Promise<Response> {
+  try {
+    if (deps.sessionSecret.length < MIN_SECRET_LENGTH) throw new ApiFailure(500, 'MISCONFIGURED', '서버 설정을 확인해 주세요.', 'SESSION_SECRET이 32자보다 짧아요.');
+    return json(200, await route(req, deps, now()), cors);
+  } catch (e) {
+    if (e instanceof ApiFailure) {
+      if (e.status >= 500 || e.status === 429) logFailure(req, e.status, e.code, e.detail ?? e.message);
+      return json(e.status, { code: e.code, message: e.message }, cors);
+    }
+    logFailure(req, 500, 'INTERNAL', e instanceof Error ? `${e.name}: ${e.message}` : String(e), e instanceof Error ? e.stack : undefined);
+    return json(500, { code: 'INTERNAL', message: '잠시 후 다시 시도해 주세요.' }, cors);
+  }
 }
 
 async function route(req: Request, deps: AppDeps, nowMs: number): Promise<unknown> {

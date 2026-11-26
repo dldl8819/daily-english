@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import sample from '../../src/data/questions.sample.json';
 import type { AnswerResponse, CompleteResponse, ProgressResponse, SetView, TodayResponse } from '../../src/lib/apiTypes';
 import type { Question } from '../../src/lib/types';
@@ -9,6 +9,11 @@ import { createMemoryStore } from '../src/store-memory';
 
 const BANK = createBank(sample as Question[]);
 const SECRET = 's'.repeat(32);
+
+// 요청마다 남기는 api_timing 로그(console.log)가 테스트 출력을 덮지 않게 한다. 로그 내용은 아래 테스트에서 따로 본다.
+beforeEach(() => {
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+});
 const ORIGIN = 'https://english-bite.apps.tossmini.com';
 const API = 'https://api.test/api/v1';
 const PROFILE = 'reason=career&careerFocus=dev&selfLevel=1&dailyGoal=5';
@@ -434,6 +439,38 @@ describe('서버 오류 로그 (Workers 로그)', () => {
     await answerOf(app, token, 'daily', 1, 0);
     expect(errors).toHaveBeenCalledTimes(1);
     expect(warns).toHaveBeenCalledTimes(1);
+  });
+
+  it('요청마다 걸린 시간과 DB·토스 API 대기를 api_timing으로 남기고, 토큰·식별키·쿼리는 남기지 않는다', async () => {
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { app } = setup();
+    const token = await login(app, 'secret-anon-key');
+    expect((await call(app, 'GET', `/daily?date=${DATE}&${PROFILE}`, { token, headers: { 'cf-ray': 'ray-2' } })).status).toBe(200);
+
+    const entries = logs.mock.calls.map((c) => c[0] as { event: string; path: string; status: number; ms: number; waits: { op: string; ms: number }[]; ray: string | null });
+    const auth = entries.find((e) => e.path === '/api/v1/auth/anonymous')!;
+    expect(auth).toMatchObject({ event: 'api_timing', status: 200 });
+    expect(auth.waits.map((w) => w.op)).toEqual(['exchange', 'userByIdentity']);
+    const daily = entries.find((e) => e.path === '/api/v1/daily')!;
+    expect(daily).toMatchObject({ event: 'api_timing', status: 200, ray: 'ray-2' });
+    expect(typeof daily.ms).toBe('number');
+    // 새 세트: 사용자·세트를 한 번에 읽고 저장한다. 세트 목록을 다시 읽지 않는다(docs/21 5.1).
+    expect(daily.waits.map((w) => w.op).sort()).toEqual(['insertSet', 'sets', 'user']);
+    const logged = JSON.stringify(entries);
+    expect(logged).not.toContain(token);
+    expect(logged).not.toContain('secret-anon-key');
+    expect(logged).not.toContain('careerFocus');
+  });
+
+  it('이미 만든 세트를 다시 받을 때는 사용자·세트만 읽는다', async () => {
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { app } = setup();
+    const token = await login(app, 'a');
+    await todayOf(app, token);
+    logs.mockClear();
+    expect((await todayOf(app, token)).status).toBe(200);
+    const entry = logs.mock.calls[0][0] as { waits: { op: string }[] };
+    expect(entry.waits.map((w) => w.op).sort()).toEqual(['sets', 'user']);
   });
 
   it('서명 키가 짧은 설정 오류는 원인을 남긴다', async () => {

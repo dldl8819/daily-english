@@ -95,6 +95,8 @@ beforeEach(async () => {
   (window as { ReactNativeWebView?: unknown }).ReactNativeWebView = {};
   // jsdom에는 crypto.subtle이 없어 서버 코드(세션 서명)에 Node 구현을 쓴다.
   if (!globalThis.crypto?.subtle) Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
+  // 서버 코드가 요청마다 남기는 api_timing 로그(console.log)를 테스트 출력에서 뺀다.
+  vi.spyOn(console, 'log').mockImplementation(() => {});
 
   const app = createApp({
     store: createMemoryStore(),

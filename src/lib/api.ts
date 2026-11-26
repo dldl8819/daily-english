@@ -67,7 +67,8 @@ async function send<T>(method: 'GET' | 'POST', path: string, body: unknown, toke
       signal: controller.signal,
     });
   } catch {
-    throw new ApiError(0, 'NETWORK', '인터넷 연결을 확인하고 다시 시도해 주세요.');
+    // 시간 초과(TIMEOUT)와 연결 실패(NETWORK)를 나눈다. 시간 초과는 서버가 늦게라도 처리했을 수 있어 request가 한 번 더 보낸다.
+    throw new ApiError(0, controller.signal.aborted ? 'TIMEOUT' : 'NETWORK', '인터넷 연결을 확인하고 다시 시도해 주세요.');
   } finally {
     clearTimeout(timer);
   }
@@ -101,8 +102,22 @@ async function session(renew: boolean): Promise<Session> {
   return (current = await renewing);
 }
 
-/** 로그인이 필요한 API. 토큰이 거절되면(401) 한 번 새로 받아 다시 보낸다. */
+/**
+ * 로그인이 필요한 API. 시간 초과면 오류를 보여 주기 전에 한 번 더 보낸다.
+ * 서버 API는 같은 요청을 다시 받아도 결과가 같다(이미 만든 세트, 같은 답, 이미 마친 세트를 그대로 돌려주고, 기록 가져오기는 409로 끝난다).
+ * 2026-11-26: 서버가 첫 문제 받기에 7.7초를 써서 앱이 10초에 끊었고, 사용자가 다시 시도를 누르자 0.7초에 받았다(docs/21 2.8).
+ */
 export async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+  try {
+    return await authorized<T>(method, path, body);
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.code !== 'TIMEOUT') throw e;
+    return authorized<T>(method, path, body);
+  }
+}
+
+/** 토큰이 거절되면(401) 한 번 새로 받아 다시 보낸다. */
+async function authorized<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
   const { token } = await session(false);
   try {
     return await send<T>(method, path, body, token);
