@@ -10,6 +10,8 @@ src/data/questions.json
 # 1년 분량으로 늘린 추가 문제 은행. 서버 모드에서만 쓴다(기기 모드 번들에는 넣지 않는다).
 src/data/questions.extra.json
 docs/18_기능_확장_기획.md
+# 손으로 만든 백업 사본. 위 규칙은 파일 이름으로만 막아서 questions.json_bak 같은 사본은 걸러지지 않는다.
+*_bak
 
 # 비밀값: 서버 비밀 키·mTLS 인증서·Workers 로컬 비밀값. 공개 저장소라 한 번 올라가면 키를 새로 발급해야 한다.
 # .env.production은 번들에 들어가는 공개 값(광고 그룹 ID)만 담으므로 저장소에 둔다.
