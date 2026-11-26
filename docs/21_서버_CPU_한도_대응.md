@@ -180,7 +180,8 @@ QR 테스트(번들 01a1bb26)를 `wrangler tail`로 봤다. 오늘의 문제(새
 - [x] 앱 번들 빌드가 Next.js 16.4.2의 보안 권고(중간 7건)로 막혀 16.4.6으로 올림(ecb2c11). 권고는 서버 실행·use cache·이미지 최적화·Edge 경로 대상이라 정적 내보내기인 이 앱과는 무관하지만, 고친 버전을 쓴다. 16.4.6은 2026-11-09 공개, lockfile은 next 패키지만 바뀜
 - [x] 서버 모드 앱 번들 빌드 (`npm run build:ait`, 2026-11-26 11:46, 251,484바이트, 번들 검사 0/1425)
 - [ ] 사용자: 서버 배포 (`server/`에서 `npm run deploy`)
-- [ ] 앱 번들 올리기(`ait deploy`) → 새 테스트 링크로 QR 테스트, `wrangler tail`로 `api_timing`과 CPU 확인
+- [x] 앱 번들 올리기(`ait deploy`, 2026-11-26, 메모 "시간 초과 자동 재시도, Next.js 16.4.6", `_deploymentId=01a215bf-6052-7387-bd84-3798894c536f`)
+- [ ] 서버 배포 뒤 새 테스트 링크로 QR 테스트, `wrangler tail`로 `api_timing`과 CPU 확인
 - [ ] 검토 요청 (콘솔 웹, 또는 daily-english 폴더에서 연 세션의 콘솔 MCP `bundle_submit_review`)
 - [x] 남은 CPU 10ms가 어디서 드는지 찾기 → `localeCompare` 첫 호출(2.9). 날짜 비교를 바꿨다
 - [x] 테스트: `npm test` 22,140개 통과(새 테스트 6개: 앱 재시도 4, 서버 시간 로그·DB 호출 수 2), 앱·서버 타입 검사 통과
